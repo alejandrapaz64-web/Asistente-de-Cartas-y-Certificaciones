@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Envío Masivo Personalizado – UniSabana</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --azul:#1F3864;--azul-med:#2E5096;--azul-claro:#4A7BC8;
+    --verde:#1a7a4a;--verde-bg:#eafaf1;
+    --gris:#f4f6fb;--borde:#dde3f0;--texto:#1a1a2e;
+  }
+  body{font-family:'Inter',sans-serif;background:var(--gris);color:var(--texto);min-height:100vh;}
+
+  .header{background:var(--azul);color:white;padding:16px 28px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,0.18);}
+  .header-title{font-size:0.95rem;font-weight:700;}
+  .header-sub{font-size:0.7rem;opacity:0.7;}
+
+  .main{max-width:1100px;margin:0 auto;padding:24px 18px;}
+
+  /* STEPS */
+  .steps{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+  .step{flex:1;min-width:160px;background:white;border:1.5px solid var(--borde);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;}
+  .step.done{border-color:var(--verde);background:var(--verde-bg);}
+  .step.active{border-color:var(--azul);background:#eef2fb;}
+  .step-num{width:26px;height:26px;border-radius:50%;background:var(--borde);color:#888;font-size:0.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .step.done .step-num{background:var(--verde);color:white;}
+  .step.active .step-num{background:var(--azul);color:white;}
+  .step-text{font-size:0.75rem;font-weight:600;color:#555;}
+  .step.done .step-text,.step.active .step-text{color:var(--azul);}
+
+  /* SETUP PANEL */
+  .setup-panel{background:white;border-radius:14px;padding:22px;box-shadow:0 1px 6px rgba(0,0,0,0.07);border:1px solid var(--borde);margin-bottom:16px;}
+  .setup-panel.oculto{display:none;}
+  .panel-title{font-size:0.8rem;font-weight:700;color:var(--azul);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--gris);}
+
+  .field{margin-bottom:14px;}
+  .field label{font-size:0.75rem;font-weight:600;color:#555;display:block;margin-bottom:5px;}
+  .field input,.field textarea{width:100%;padding:10px 12px;border:1.5px solid var(--borde);border-radius:10px;font-size:0.83rem;font-family:inherit;color:var(--texto);}
+  .field input:focus,.field textarea:focus{outline:none;border-color:var(--azul-claro);}
+  .field textarea{resize:vertical;}
+  .hint-field{font-size:0.7rem;color:#888;margin-top:4px;}
+  .hint-field strong{color:var(--azul);}
+
+  .btn-primary{padding:11px 20px;background:var(--azul);color:white;border:none;border-radius:10px;font-size:0.83rem;font-weight:600;cursor:pointer;transition:background 0.15s;}
+  .btn-primary:hover{background:var(--azul-med);}
+  .btn-secondary{padding:10px 18px;background:white;color:var(--azul);border:2px solid var(--azul);border-radius:10px;font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s;}
+  .btn-secondary:hover{background:var(--azul);color:white;}
+
+  /* ENVIO PANEL */
+  .envio-grid{display:grid;grid-template-columns:280px 1fr;gap:16px;}
+  @media(max-width:700px){.envio-grid{grid-template-columns:1fr;}}
+
+  /* LISTA */
+  .lista-panel{background:white;border-radius:14px;padding:18px;box-shadow:0 1px 6px rgba(0,0,0,0.07);border:1px solid var(--borde);}
+  .progress-wrap{margin-bottom:12px;}
+  .progress-info{display:flex;justify-content:space-between;font-size:0.72rem;color:#888;margin-bottom:5px;}
+  .progress-bar-bg{background:#e8ecf5;border-radius:8px;height:6px;}
+  .progress-bar-fill{background:linear-gradient(90deg,var(--azul-claro),var(--azul));height:100%;border-radius:8px;transition:width 0.4s;}
+
+  .est-item{display:flex;align-items:center;justify-content:space-between;padding:9px 10px;border-radius:9px;margin-bottom:5px;border:1.5px solid var(--borde);cursor:pointer;transition:all 0.12s;gap:6px;}
+  .est-item:hover{border-color:var(--azul-claro);background:#f0f4fc;}
+  .est-item.activo{border-color:var(--azul);background:#eef2fb;}
+  .est-item.enviado{border-color:var(--verde);background:var(--verde-bg);}
+  .est-nombre{font-size:0.78rem;font-weight:600;color:#333;flex:1;line-height:1.3;}
+  .est-badge{font-size:0.65rem;padding:2px 7px;border-radius:8px;font-weight:600;white-space:nowrap;}
+  .badge-pend{background:#f0f0f0;color:#888;}
+  .badge-ok{background:var(--verde-bg);color:var(--verde);}
+  .badge-act{background:#eef2fb;color:var(--azul);}
+
+  .nav-btns{display:flex;gap:6px;margin-top:10px;}
+  .btn-nav{flex:1;padding:8px;border:1.5px solid var(--borde);background:white;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer;color:#555;transition:all 0.12s;}
+  .btn-nav:hover{border-color:var(--azul-claro);color:var(--azul);}
+  .btn-nav:disabled{opacity:0.3;cursor:default;}
+
+  /* CORREO */
+  .correo-panel{background:white;border-radius:14px;padding:20px;box-shadow:0 1px 6px rgba(0,0,0,0.07);border:1px solid var(--borde);display:flex;flex-direction:column;gap:12px;}
+  .placeholder-correo{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;color:#bbb;text-align:center;gap:8px;}
+  .placeholder-correo .icon{font-size:2.5rem;}
+
+  .asunto-box{background:var(--gris);border:1.5px solid var(--borde);border-radius:10px;padding:10px 14px;font-size:0.82rem;color:#333;font-weight:500;}
+  .correo-body{background:#fafbff;border:1.5px solid var(--borde);border-radius:10px;padding:16px;font-size:0.82rem;line-height:1.8;color:#222;white-space:pre-wrap;min-height:280px;font-family:'Inter',sans-serif;}
+
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .btn-copiar-asunto{flex:1;padding:10px;border:2px solid var(--azul);background:white;color:var(--azul);border-radius:10px;font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s;}
+  .btn-copiar-asunto:hover{background:var(--azul);color:white;}
+  .btn-copiar-correo{flex:2;padding:10px;background:var(--azul);color:white;border:none;border-radius:10px;font-size:0.8rem;font-weight:600;cursor:pointer;transition:background 0.15s;}
+  .btn-copiar-correo:hover{background:var(--azul-med);}
+  .btn-marcar{width:100%;padding:11px;background:var(--verde);color:white;border:none;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;transition:background 0.15s;}
+  .btn-marcar:hover{background:#156b3e;}
+  .btn-marcar.ya{background:#aaa;cursor:default;}
+  .pasos-hint{font-size:0.7rem;color:#888;text-align:center;}
+
+  /* RESET */
+  .btn-reset{font-size:0.72rem;color:#aaa;background:none;border:none;cursor:pointer;text-decoration:underline;margin-top:8px;}
+  .btn-reset:hover{color:var(--azul);}
+
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--azul);color:white;padding:10px 22px;border-radius:30px;font-size:0.8rem;font-weight:600;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,0.2);}
+  .toast.show{opacity:1;}
+
+  .stats{display:flex;gap:10px;margin-bottom:14px;}
+  .stat{flex:1;background:white;border:1px solid var(--borde);border-radius:10px;padding:10px;text-align:center;}
+  .stat-num{font-size:1.3rem;font-weight:700;color:var(--azul);}
+  .stat-label{font-size:0.68rem;color:#888;}
+  .stat.verde .stat-num{color:var(--verde);}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>📧</div>
+  <div>
+    <div class="header-title">Envío Masivo Personalizado – Universidad de La Sabana</div>
+    <div class="header-sub">Personaliza correos automáticamente con el nombre de cada destinatario</div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- PASOS VISUALES -->
+  <div class="steps">
+    <div class="step active" id="step1"><div class="step-num">1</div><div class="step-text">Modelo de correo</div></div>
+    <div class="step" id="step2"><div class="step-num">2</div><div class="step-text">Lista de nombres</div></div>
+    <div class="step" id="step3"><div class="step-num">3</div><div class="step-text">Enviar uno a uno</div></div>
+  </div>
+
+  <!-- PASO 1: MODELO -->
+  <div class="setup-panel" id="panel-modelo">
+    <div class="panel-title">✏️ Paso 1 — Escribe tu modelo de correo</div>
+    <div class="field">
+      <label>Asunto del correo</label>
+      <input type="text" id="input-asunto" placeholder="Ej: Información sobre proceso de condonación">
+    </div>
+    <div class="field">
+      <label>Cuerpo del correo</label>
+      <p class="hint-field" style="margin-bottom:8px;">Usa <strong>&lt;&lt;Nombre&gt;&gt;</strong> donde quieres que aparezca el nombre del estudiante. Puedes usarlo varias veces.</p>
+      <textarea id="input-modelo" rows="14" placeholder="Estimada/o <<Nombre>>,
+
+Reciba un cordial saludo de la Facultad de Educación...
+
+Cordialmente,
+Coordinación de Región
+Facultad de Educación
+Universidad de La Sabana"></textarea>
+      <p class="hint-field">El marcador <strong>&lt;&lt;Nombre&gt;&gt;</strong> será reemplazado automáticamente con el nombre de cada estudiante.</p>
+    </div>
+    <button class="btn-primary" onclick="irPaso2()">Continuar → Agregar nombres</button>
+  </div>
+
+  <!-- PASO 2: NOMBRES -->
+  <div class="setup-panel oculto" id="panel-nombres">
+    <div class="panel-title">📋 Paso 2 — Lista de destinatarios</div>
+    <div class="field">
+      <label>Pega los nombres (uno por línea)</label>
+      <textarea id="input-nombres" rows="10" placeholder="ACUÑA RIOS OLGA PATRICIA&#10;AGUIRRE VARGAS SANDRA YANETH&#10;APARICIO SANDOVAL HENRY&#10;..."></textarea>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn-secondary" onclick="irPaso1()">← Volver al modelo</button>
+      <button class="btn-primary" onclick="irPaso3()">Continuar → Iniciar envíos</button>
+    </div>
+  </div>
+
+  <!-- PASO 3: ENVÍO -->
+  <div class="setup-panel oculto" id="panel-envio">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div class="panel-title" style="margin-bottom:0;border:none;padding:0;">📤 Paso 3 — Enviar correos</div>
+      <button class="btn-reset" onclick="reiniciar()">↺ Empezar de nuevo</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total</div></div>
+      <div class="stat verde"><div class="stat-num" id="stat-enviados">0</div><div class="stat-label">Enviados ✓</div></div>
+      <div class="stat"><div class="stat-num" id="stat-pend">0</div><div class="stat-label">Pendientes</div></div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-info">
+        <span>Progreso</span>
+        <span id="prog-texto">0 de 0</span>
+      </div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="prog-bar" style="width:0%"></div></div>
+    </div>
+
+    <div class="envio-grid">
+      <!-- Lista -->
+      <div class="lista-panel">
+        <div class="panel-title" style="font-size:0.72rem;">Destinatarios</div>
+        <div id="lista-est"></div>
+        <div class="nav-btns">
+          <button class="btn-nav" id="btn-ant" onclick="navegar(-1)" disabled>← Ant</button>
+          <button class="btn-nav" id="btn-sig" onclick="navegar(1)">Sig →</button>
+        </div>
+      </div>
+
+      <!-- Correo -->
+      <div class="correo-panel">
+        <div id="correo-placeholder" class="placeholder-correo">
+          <div class="icon">👈</div>
+          <p>Selecciona un nombre<br>para ver su correo</p>
+        </div>
+
+        <div id="correo-contenido" style="display:none;flex-direction:column;gap:12px;">
+          <div>
+            <div style="font-size:0.72rem;font-weight:600;color:#555;margin-bottom:4px;">ASUNTO</div>
+            <div class="asunto-box" id="asunto-preview"></div>
+          </div>
+          <div>
+            <div style="font-size:0.72rem;font-weight:600;color:#555;margin-bottom:4px;">CUERPO</div>
+            <div class="correo-body" id="correo-preview"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-copiar-asunto" onclick="copiar('asunto')">📋 Copiar asunto</button>
+            <button class="btn-copiar-correo" onclick="copiar('correo')">📋 Copiar correo</button>
+          </div>
+          <button class="btn-marcar" id="btn-marcar" onclick="marcarEnviado()">✅ Marcar como enviado</button>
+          <p class="pasos-hint">① Copia asunto → ② Copia correo → ③ Pega en Outlook → ④ Adjunta PDF → ⑤ Envía → ⑥ Marca enviado</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let estudiantes = [];
+let activo = null;
+let modeloAsunto = '';
+let modeloCuerpo = '';
+
+// ── PASO 1 → 2 ──
+function irPaso1(){
+  mostrar('panel-modelo');
+  setStep(1);
+}
+
+function irPaso2(){
+  const asunto = document.getElementById('input-asunto').value.trim();
+  const cuerpo = document.getElementById('input-modelo').value.trim();
+  if(!asunto){ toast('⚠️ Escribe el asunto del correo'); return; }
+  if(!cuerpo){ toast('⚠️ Escribe el modelo del correo'); return; }
+  if(!cuerpo.includes('<<Nombre>>')){
+    if(!confirm('No encontré <<Nombre>> en el modelo. ¿Todos los correos serán idénticos? Continuar de todas formas?')) return;
+  }
+  modeloAsunto = asunto;
+  modeloCuerpo = cuerpo;
+  mostrar('panel-nombres');
+  setStep(2);
+}
+
+// ── PASO 2 → 3 ──
+function irPaso3(){
+  const raw = document.getElementById('input-nombres').value.trim();
+  if(!raw){ toast('⚠️ Agrega al menos un nombre'); return; }
+  const nombres = raw.split('\n').map(n=>n.trim()).filter(n=>n);
+  if(!nombres.length){ toast('⚠️ No se encontraron nombres válidos'); return; }
+  estudiantes = nombres.map(nombre=>({nombre, enviado:false}));
+  mostrar('panel-envio');
+  setStep(3);
+  renderLista();
+  actualizarStats();
+  // Seleccionar el primero
+  seleccionar(0);
+  toast(`✅ ${nombres.length} destinatarios cargados`);
+}
+
+// ── SELECCIONAR ──
+function seleccionar(i){
+  if(i < 0 || i >= estudiantes.length) return;
+  activo = i;
+  const est = estudiantes[i];
+
+  // Personalizar correo
+  const cuerpoPersonalizado = modeloCuerpo.replace(/<<Nombre>>/g, est.nombre);
+
+  document.getElementById('correo-placeholder').style.display = 'none';
+  const cont = document.getElementById('correo-contenido');
+  cont.style.display = 'flex';
+
+  document.getElementById('asunto-preview').textContent = modeloAsunto;
+
+  // Resaltar nombre en el preview
+  const cuerpoHtml = cuerpoPersonalizado.replace(
+    new RegExp(est.nombre.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g'),
+    `<strong style="color:var(--azul)">${est.nombre}</strong>`
+  );
+  document.getElementById('correo-preview').innerHTML = cuerpoHtml;
+
+  const btnM = document.getElementById('btn-marcar');
+  btnM.textContent = est.enviado ? '✅ Ya marcado como enviado' : '✅ Marcar como enviado';
+  btnM.className = 'btn-marcar' + (est.enviado ? ' ya' : '');
+
+  // Scroll en lista
+  const el = document.getElementById(`est-${i}`);
+  if(el) el.scrollIntoView({block:'nearest', behavior:'smooth'});
+
+  renderLista();
+  actualizarNav();
+}
+
+// ── RENDER LISTA ──
+function renderLista(){
+  const cont = document.getElementById('lista-est');
+  cont.innerHTML = '';
+  estudiantes.forEach((est, i) => {
+    const div = document.createElement('div');
+    div.className = 'est-item' + (i===activo?' activo':'') + (est.enviado?' enviado':'');
+    div.id = `est-${i}`;
+    div.onclick = () => seleccionar(i);
+    div.innerHTML = `
+      <span class="est-nombre">${est.nombre}</span>
+      <span class="est-badge ${est.enviado?'badge-ok':i===activo?'badge-act':'badge-pend'}">
+        ${est.enviado?'✓':i===activo?'👁':'–'}
+      </span>`;
+    cont.appendChild(div);
+  });
+}
+
+// ── COPIAR ──
+function copiar(tipo){
+  let texto = '';
+  if(tipo === 'asunto') texto = modeloAsunto;
+  else if(tipo === 'correo' && activo !== null){
+    texto = modeloCuerpo.replace(/<<Nombre>>/g, estudiantes[activo].nombre);
+  }
+  if(!texto) return;
+
+  const ta = document.createElement('textarea');
+  ta.value = texto;
+  ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try{
+    document.execCommand('copy');
+    toast(tipo === 'asunto' ? '📋 Asunto copiado — pégalo en Outlook' : '📋 Correo copiado — pégalo en Outlook');
+  }catch(e){
+    toast('⚠️ No se pudo copiar automáticamente');
+  }
+  document.body.removeChild(ta);
+}
+
+// ── MARCAR ENVIADO ──
+function marcarEnviado(){
+  if(activo === null || estudiantes[activo].enviado) return;
+  estudiantes[activo].enviado = true;
+  renderLista();
+  actualizarStats();
+  document.getElementById('btn-marcar').textContent = '✅ Ya marcado como enviado';
+  document.getElementById('btn-marcar').classList.add('ya');
+  toast('✅ Enviado marcado');
+
+  // Auto-avanzar al siguiente pendiente
+  setTimeout(() => {
+    const sig = estudiantes.findIndex((e,i) => i > activo && !e.enviado);
+    if(sig >= 0) seleccionar(sig);
+    else {
+      const any = estudiantes.findIndex(e => !e.enviado);
+      if(any >= 0) seleccionar(any);
+      else toast('🎉 ¡Todos los correos enviados!');
+    }
+  }, 700);
+}
+
+// ── NAVEGAR ──
+function navegar(dir){
+  const nuevo = activo + dir;
+  if(nuevo >= 0 && nuevo < estudiantes.length) seleccionar(nuevo);
+}
+
+function actualizarNav(){
+  document.getElementById('btn-ant').disabled = activo <= 0;
+  document.getElementById('btn-sig').disabled = activo >= estudiantes.length - 1;
+}
+
+// ── STATS ──
+function actualizarStats(){
+  const total = estudiantes.length;
+  const env = estudiantes.filter(e=>e.enviado).length;
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-enviados').textContent = env;
+  document.getElementById('stat-pend').textContent = total - env;
+  document.getElementById('prog-texto').textContent = `${env} de ${total}`;
+  document.getElementById('prog-bar').style.width = total>0?(env/total*100)+'%':'0%';
+}
+
+// ── UI ──
+function mostrar(id){
+  ['panel-modelo','panel-nombres','panel-envio'].forEach(p=>{
+    document.getElementById(p).classList.add('oculto');
+  });
+  document.getElementById(id).classList.remove('oculto');
+}
+
+function setStep(n){
+  [1,2,3].forEach(i=>{
+    const el = document.getElementById(`step${i}`);
+    el.classList.remove('active','done');
+    if(i < n) el.classList.add('done');
+    else if(i === n) el.classList.add('active');
+  });
+}
+
+function reiniciar(){
+  if(!confirm('¿Segura? Se borrarán el modelo y la lista actual.')) return;
+  estudiantes=[]; activo=null; modeloAsunto=''; modeloCuerpo='';
+  document.getElementById('input-asunto').value='';
+  document.getElementById('input-modelo').value='';
+  document.getElementById('input-nombres').value='';
+  irPaso1();
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>
