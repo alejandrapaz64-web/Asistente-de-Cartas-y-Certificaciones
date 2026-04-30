@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Envío Masivo Personalizado – UniSabana</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --azul:#1F3864;--azul-med:#2E5096;--azul-claro:#4A7BC8;
+    --verde:#1a7a4a;--verde-bg:#eafaf1;
+    --gris:#f4f6fb;--borde:#dde3f0;--texto:#1a1a2e;
+  }
+  body{font-family:'Inter',sans-serif;background:var(--gris);color:var(--texto);min-height:100vh;}
+
+  .header{background:var(--azul);color:white;padding:16px 28px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,0.18);position:sticky;top:0;z-index:500;}
+  .header-title{font-size:0.95rem;font-weight:700;}
+  .header-sub{font-size:0.7rem;opacity:0.7;}
+
+  .main{max-width:1100px;margin:0 auto;padding:24px 18px;}
+
+  /* STEPS */
+  .steps{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+  .step{flex:1;min-width:160px;background:white;border:1.5px solid var(--borde);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;}
+  .step.done{border-color:var(--verde);background:var(--verde-bg);}
+  .step.active{border-color:var(--azul);background:#eef2fb;}
+  .step-num{width:26px;height:26px;border-radius:50%;background:var(--borde);color:#888;font-size:0.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .step.done .step-num{background:var(--verde);color:white;}
+  .step.active .step-num{background:var(--azul);color:white;}
+  .step-text{font-size:0.75rem;font-weight:600;color:#555;}
+  .step.done .step-text,.step.active .step-text{color:var(--azul);}
+
+  /* SETUP PANEL */
+  .setup-panel{background:white;border-radius:14px;padding:22px;box-shadow:0 1px 6px rgba(0,0,0,0.07);border:1px solid var(--borde);margin-bottom:16px;}
+  .setup-panel.oculto{display:none;}
+  .panel-title{font-size:0.8rem;font-weight:700;color:var(--azul);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--gris);}
+
+  .field{margin-bottom:14px;}
+  .field label{font-size:0.75rem;font-weight:600;color:#555;display:block;margin-bottom:5px;}
+  .field input,.field textarea{width:100%;padding:10px 12px;border:1.5px solid var(--borde);border-radius:10px;font-size:0.83rem;font-family:inherit;color:var(--texto);}
+  .field input:focus,.field textarea:focus{outline:none;border-color:var(--azul-claro);}
+  .field textarea{resize:vertical;}
+  .hint-field{font-size:0.7rem;color:#888;margin-top:4px;}
+  .hint-field strong{color:var(--azul);}
+
+  .btn-primary{padding:11px 20px;background:var(--azul);color:white;border:none;border-radius:10px;font-size:0.83rem;font-weight:600;cursor:pointer;transition:background 0.15s;}
+  .btn-primary:hover{background:var(--azul-med);}
+  .btn-secondary{padding:10px 18px;background:white;color:var(--azul);border:2px solid var(--azul);border-radius:10px;font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s;}
+  .btn-secondary:hover{background:var(--azul);color:white;}
+
+  /* ENVIO PANEL */
+  .envio-grid{display:grid;grid-template-columns:280px 1fr;gap:16px;}
+  @media(max-width:700px){.envio-grid{grid-template-columns:1fr;}}
+
+  /* LISTA */
+  .lista-panel{background:white;border-radius:14px;padding:18px;box-shadow:0 1px 6px rgba(0,0,0,0.07);border:1px solid var(--borde);}
+  .progress-wrap{margin-bottom:12px;}
+  .progress-info{display:flex;justify-content:space-between;font-size:0.72rem;color:#888;margin-bottom:5px;}
+  .progress-bar-bg{background:#e8ecf5;border-radius:8px;height:6px;}
+  .progress-bar-fill{background:linear-gradient(90deg,var(--azul-claro),var(--azul));height:100%;border-radius:8px;transition:width 0.4s;}
+
+  .est-item{display:flex;align-items:center;justify-content:space-between;padding:9px 10px;border-radius:9px;margin-bottom:5px;border:1.5px solid var(--borde);cursor:pointer;transition:all 0.12s;gap:6px;}
+  .est-item:hover{border-color:var(--azul-claro);background:#f0f4fc;}
+  .est-item.activo{border-color:var(--azul);background:#eef2fb;}
+  .est-item.enviado{border-color:var(--verde);background:var(--verde-bg);}
+  .est-nombre{font-size:0.78rem;font-weight:600;color:#333;flex:1;line-height:1.3;}
+  .est-badge{font-size:0.65rem;padding:2px 7px;border-radius:8px;font-weight:600;white-space:nowrap;}
+  .badge-pend{background:#f0f0f0;color:#888;}
+  .badge-ok{background:var(--verde-bg);color:var(--verde);}
+  .badge-act{background:#eef2fb;color:var(--azul);}
+
+  .nav-btns{display:flex;gap:6px;margin-top:10px;}
+  .btn-nav{flex:1;padding:8px;border:1.5px solid var(--borde);background:white;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer;color:#555;transition:all 0.12s;}
+  .btn-nav:hover{border-color:var(--azul-claro);color:var(--azul);}
+  .btn-nav:disabled{opacity:0.3;cursor:default;}
+
+  /* CORREO */
+  .correo-panel{background:white;border-radius:14px;padding:20px;box-shadow:0 1px 6px rgba(0,0,0,0.07);border:1px solid var(--borde);display:flex;flex-direction:column;gap:12px;}
+  .placeholder-correo{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;color:#bbb;text-align:center;gap:8px;}
+  .placeholder-correo .icon{font-size:2.5rem;}
+
+  .asunto-box{background:var(--gris);border:1.5px solid var(--borde);border-radius:10px;padding:10px 14px;font-size:0.82rem;color:#333;font-weight:500;}
+  .correo-body{background:#fafbff;border:1.5px solid var(--borde);border-radius:10px;padding:16px;font-size:0.82rem;line-height:1.8;color:#222;white-space:pre-wrap;min-height:280px;font-family:'Inter',sans-serif;}
+
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .btn-copiar-asunto{flex:1;padding:10px;border:2px solid var(--azul);background:white;color:var(--azul);border-radius:10px;font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s;}
+  .btn-copiar-asunto:hover{background:var(--azul);color:white;}
+  .btn-copiar-correo{flex:2;padding:10px;background:var(--azul);color:white;border:none;border-radius:10px;font-size:0.8rem;font-weight:600;cursor:pointer;transition:background 0.15s;}
+  .btn-copiar-correo:hover{background:var(--azul-med);}
+  .btn-marcar{width:100%;padding:11px;background:var(--verde);color:white;border:none;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;transition:background 0.15s;}
+  .btn-marcar:hover{background:#156b3e;}
+  .btn-marcar.ya{background:#aaa;cursor:default;}
+  .pasos-hint{font-size:0.7rem;color:#888;text-align:center;}
+
+  /* RESET */
+  .btn-reset{font-size:0.72rem;color:#aaa;background:none;border:none;cursor:pointer;text-decoration:underline;margin-top:8px;}
+  .btn-reset:hover{color:var(--azul);}
+
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--azul);color:white;padding:10px 22px;border-radius:30px;font-size:0.8rem;font-weight:600;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,0.2);}
+  .toast.show{opacity:1;}
+
+  .stats{display:flex;gap:10px;margin-bottom:14px;}
+  .stat{flex:1;background:white;border:1px solid var(--borde);border-radius:10px;padding:10px;text-align:center;}
+  .stat-num{font-size:1.3rem;font-weight:700;color:var(--azul);}
+  .stat-label{font-size:0.68rem;color:#888;}
+  .stat.verde .stat-num{color:var(--verde);}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <img src="data:image/png;base64,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" alt="Universidad de La Sabana" style="height:44px;width:auto;border-radius:4px;flex-shrink:0;">
+  <div>
+    <div class="header-title">Envío Masivo Personalizado – Universidad de La Sabana</div>
+    <div class="header-sub">Personaliza correos automáticamente con el nombre de cada destinatario</div>
+  </div>
+  <a href="index.html" style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.18);color:white;text-decoration:none;border:1.5px solid rgba(255,255,255,0.45);border-radius:8px;padding:7px 16px;font-size:0.78rem;font-weight:600;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,0.28)'" onmouseout="this.style.background='rgba(255,255,255,0.18)'">🏠 Inicio</a>
+  <!-- ALMA – enlace directo GPT -->
+  <a href="https://chatgpt.com/g/g-69e2b60758348191beefb0e8a525e20d-asistente-alma-redaccion-academica-institucional" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.18);color:white;text-decoration:none;border:1.5px solid rgba(255,255,255,0.45);border-radius:8px;padding:7px 16px;font-size:0.78rem;font-weight:600;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,0.28)'" onmouseout="this.style.background='rgba(255,255,255,0.18)'">✨ Alma</a>
+  <!-- FIN ALMA – enlace directo GPT -->
+</div>
+
+<div class="main">
+
+  <!-- PASOS VISUALES -->
+  <div class="steps">
+    <div class="step active" id="step1"><div class="step-num">1</div><div class="step-text">Modelo de correo</div></div>
+    <div class="step" id="step2"><div class="step-num">2</div><div class="step-text">Lista de nombres</div></div>
+    <div class="step" id="step3"><div class="step-num">3</div><div class="step-text">Enviar uno a uno</div></div>
+  </div>
+
+  <!-- PASO 1: MODELO -->
+  <div class="setup-panel" id="panel-modelo">
+    <div class="panel-title">✏️ Paso 1 — Escribe tu modelo de correo</div>
+    <div class="field">
+      <label>Asunto del correo</label>
+      <input type="text" id="input-asunto" placeholder="Ej: Información sobre proceso de condonación">
+    </div>
+    <div class="field">
+      <label>Cuerpo del correo</label>
+      <p class="hint-field" style="margin-bottom:8px;">Usa <strong>&lt;&lt;Nombre&gt;&gt;</strong> donde quieres que aparezca el nombre del estudiante. Puedes usarlo varias veces.</p>
+      <textarea id="input-modelo" rows="14" placeholder="Estimada/o <<Nombre>>,
+
+Reciba un cordial saludo de la Facultad de Educación...
+
+Cordialmente,
+Coordinación de Región
+Facultad de Educación
+Universidad de La Sabana"></textarea>
+      <p class="hint-field">El marcador <strong>&lt;&lt;Nombre&gt;&gt;</strong> será reemplazado automáticamente con el nombre de cada estudiante.</p>
+    </div>
+    <button class="btn-primary" onclick="irPaso2()">Continuar → Agregar nombres</button>
+    <!-- ALMA – enlace directo GPT en paso 1 -->
+    <a href="https://chatgpt.com/g/g-69e2b60758348191beefb0e8a525e20d-asistente-alma-redaccion-academica-institucional" target="_blank" rel="noopener" style="margin-top:10px;width:100%;padding:11px;background:white;color:var(--azul);border:2px solid var(--azul);border-radius:10px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;box-sizing:border-box;" onmouseover="this.style.background='var(--azul)';this.style.color='white'" onmouseout="this.style.background='white';this.style.color='var(--azul)'">✨ Mejorar modelo con Alma</a>
+    <!-- FIN ALMA – enlace directo GPT en paso 1 -->
+  </div>
+
+  <!-- PASO 2: NOMBRES -->
+  <div class="setup-panel oculto" id="panel-nombres">
+    <div class="panel-title">📋 Paso 2 — Lista de destinatarios</div>
+    <div class="field">
+      <label>Pega los nombres (uno por línea)</label>
+      <textarea id="input-nombres" rows="10" placeholder="ACUÑA RIOS OLGA PATRICIA&#10;AGUIRRE VARGAS SANDRA YANETH&#10;APARICIO SANDOVAL HENRY&#10;..."></textarea>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn-secondary" onclick="irPaso1()">← Volver al modelo</button>
+      <button class="btn-primary" onclick="irPaso3()">Continuar → Iniciar envíos</button>
+    </div>
+  </div>
+
+  <!-- PASO 3: ENVÍO -->
+  <div class="setup-panel oculto" id="panel-envio">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div class="panel-title" style="margin-bottom:0;border:none;padding:0;">📤 Paso 3 — Enviar correos</div>
+      <button class="btn-reset" onclick="reiniciar()">↺ Empezar de nuevo</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total</div></div>
+      <div class="stat verde"><div class="stat-num" id="stat-enviados">0</div><div class="stat-label">Enviados ✓</div></div>
+      <div class="stat"><div class="stat-num" id="stat-pend">0</div><div class="stat-label">Pendientes</div></div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-info">
+        <span>Progreso</span>
+        <span id="prog-texto">0 de 0</span>
+      </div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="prog-bar" style="width:0%"></div></div>
+    </div>
+
+    <div class="envio-grid">
+      <!-- Lista -->
+      <div class="lista-panel">
+        <div class="panel-title" style="font-size:0.72rem;">Destinatarios</div>
+        <div id="lista-est"></div>
+        <div class="nav-btns">
+          <button class="btn-nav" id="btn-ant" onclick="navegar(-1)" disabled>← Ant</button>
+          <button class="btn-nav" id="btn-sig" onclick="navegar(1)">Sig →</button>
+        </div>
+      </div>
+
+      <!-- Correo -->
+      <div class="correo-panel">
+        <div id="correo-placeholder" class="placeholder-correo">
+          <div class="icon">👈</div>
+          <p>Selecciona un nombre<br>para ver su correo</p>
+        </div>
+
+        <div id="correo-contenido" style="display:none;flex-direction:column;gap:12px;">
+          <div>
+            <div style="font-size:0.72rem;font-weight:600;color:#555;margin-bottom:4px;">ASUNTO</div>
+            <div class="asunto-box" id="asunto-preview"></div>
+          </div>
+          <div>
+            <div style="font-size:0.72rem;font-weight:600;color:#555;margin-bottom:4px;">CUERPO</div>
+            <div class="correo-body" id="correo-preview"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-copiar-asunto" onclick="copiar('asunto')">📋 Copiar asunto</button>
+            <button class="btn-copiar-correo" onclick="copiar('correo')">📋 Copiar correo</button>
+          </div>
+          <button class="btn-marcar" id="btn-marcar" onclick="marcarEnviado()">✅ Marcar como enviado</button>
+          <p class="pasos-hint">① Copia asunto → ② Copia correo → ③ Pega en Outlook → ④ Adjunta PDF → ⑤ Envía → ⑥ Marca enviado</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let estudiantes = [];
+let activo = null;
+let modeloAsunto = '';
+let modeloCuerpo = '';
+
+// ── PASO 1 → 2 ──
+function irPaso1(){
+  mostrar('panel-modelo');
+  setStep(1);
+}
+
+function irPaso2(){
+  const asunto = document.getElementById('input-asunto').value.trim();
+  const cuerpo = document.getElementById('input-modelo').value.trim();
+  if(!asunto){ toast('⚠️ Escribe el asunto del correo'); return; }
+  if(!cuerpo){ toast('⚠️ Escribe el modelo del correo'); return; }
+  if(!cuerpo.includes('<<Nombre>>')){
+    if(!confirm('No encontré <<Nombre>> en el modelo. ¿Todos los correos serán idénticos? Continuar de todas formas?')) return;
+  }
+  modeloAsunto = asunto;
+  modeloCuerpo = cuerpo;
+  mostrar('panel-nombres');
+  setStep(2);
+}
+
+// ── PASO 2 → 3 ──
+function irPaso3(){
+  const raw = document.getElementById('input-nombres').value.trim();
+  if(!raw){ toast('⚠️ Agrega al menos un nombre'); return; }
+  const nombres = raw.split('\n').map(n=>n.trim()).filter(n=>n);
+  if(!nombres.length){ toast('⚠️ No se encontraron nombres válidos'); return; }
+  estudiantes = nombres.map(nombre=>({nombre, enviado:false}));
+  mostrar('panel-envio');
+  setStep(3);
+  renderLista();
+  actualizarStats();
+  // Seleccionar el primero
+  seleccionar(0);
+  toast(`✅ ${nombres.length} destinatarios cargados`);
+}
+
+// ── SELECCIONAR ──
+function seleccionar(i){
+  if(i < 0 || i >= estudiantes.length) return;
+  activo = i;
+  const est = estudiantes[i];
+
+  // Personalizar correo
+  const cuerpoPersonalizado = modeloCuerpo.replace(/<<Nombre>>/g, est.nombre);
+
+  document.getElementById('correo-placeholder').style.display = 'none';
+  const cont = document.getElementById('correo-contenido');
+  cont.style.display = 'flex';
+
+  document.getElementById('asunto-preview').textContent = modeloAsunto;
+
+  // Resaltar nombre en el preview
+  const cuerpoHtml = cuerpoPersonalizado.replace(
+    new RegExp(est.nombre.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g'),
+    `<strong style="color:var(--azul)">${est.nombre}</strong>`
+  );
+  document.getElementById('correo-preview').innerHTML = cuerpoHtml;
+
+  const btnM = document.getElementById('btn-marcar');
+  btnM.textContent = est.enviado ? '✅ Ya marcado como enviado' : '✅ Marcar como enviado';
+  btnM.className = 'btn-marcar' + (est.enviado ? ' ya' : '');
+
+  // Scroll en lista
+  const el = document.getElementById(`est-${i}`);
+  if(el) el.scrollIntoView({block:'nearest', behavior:'smooth'});
+
+  renderLista();
+  actualizarNav();
+}
+
+// ── RENDER LISTA ──
+function renderLista(){
+  const cont = document.getElementById('lista-est');
+  cont.innerHTML = '';
+  estudiantes.forEach((est, i) => {
+    const div = document.createElement('div');
+    div.className = 'est-item' + (i===activo?' activo':'') + (est.enviado?' enviado':'');
+    div.id = `est-${i}`;
+    div.onclick = () => seleccionar(i);
+    div.innerHTML = `
+      <span class="est-nombre">${est.nombre}</span>
+      <span class="est-badge ${est.enviado?'badge-ok':i===activo?'badge-act':'badge-pend'}">
+        ${est.enviado?'✓':i===activo?'👁':'–'}
+      </span>`;
+    cont.appendChild(div);
+  });
+}
+
+// ── COPIAR ──
+function copiar(tipo){
+  let texto = '';
+  if(tipo === 'asunto') texto = modeloAsunto;
+  else if(tipo === 'correo' && activo !== null){
+    texto = modeloCuerpo.replace(/<<Nombre>>/g, estudiantes[activo].nombre);
+  }
+  if(!texto) return;
+
+  const ta = document.createElement('textarea');
+  ta.value = texto;
+  ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try{
+    document.execCommand('copy');
+    toast(tipo === 'asunto' ? '📋 Asunto copiado — pégalo en Outlook' : '📋 Correo copiado — pégalo en Outlook');
+  }catch(e){
+    toast('⚠️ No se pudo copiar automáticamente');
+  }
+  document.body.removeChild(ta);
+}
+
+// ── MARCAR ENVIADO ──
+function marcarEnviado(){
+  if(activo === null || estudiantes[activo].enviado) return;
+  estudiantes[activo].enviado = true;
+  renderLista();
+  actualizarStats();
+  document.getElementById('btn-marcar').textContent = '✅ Ya marcado como enviado';
+  document.getElementById('btn-marcar').classList.add('ya');
+  toast('✅ Enviado marcado');
+
+  // Auto-avanzar al siguiente pendiente
+  setTimeout(() => {
+    const sig = estudiantes.findIndex((e,i) => i > activo && !e.enviado);
+    if(sig >= 0) seleccionar(sig);
+    else {
+      const any = estudiantes.findIndex(e => !e.enviado);
+      if(any >= 0) seleccionar(any);
+      else toast('🎉 ¡Todos los correos enviados!');
+    }
+  }, 700);
+}
+
+// ── NAVEGAR ──
+function navegar(dir){
+  const nuevo = activo + dir;
+  if(nuevo >= 0 && nuevo < estudiantes.length) seleccionar(nuevo);
+}
+
+function actualizarNav(){
+  document.getElementById('btn-ant').disabled = activo <= 0;
+  document.getElementById('btn-sig').disabled = activo >= estudiantes.length - 1;
+}
+
+// ── STATS ──
+function actualizarStats(){
+  const total = estudiantes.length;
+  const env = estudiantes.filter(e=>e.enviado).length;
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-enviados').textContent = env;
+  document.getElementById('stat-pend').textContent = total - env;
+  document.getElementById('prog-texto').textContent = `${env} de ${total}`;
+  document.getElementById('prog-bar').style.width = total>0?(env/total*100)+'%':'0%';
+}
+
+// ── UI ──
+function mostrar(id){
+  ['panel-modelo','panel-nombres','panel-envio'].forEach(p=>{
+    document.getElementById(p).classList.add('oculto');
+  });
+  document.getElementById(id).classList.remove('oculto');
+}
+
+function setStep(n){
+  [1,2,3].forEach(i=>{
+    const el = document.getElementById(`step${i}`);
+    el.classList.remove('active','done');
+    if(i < n) el.classList.add('done');
+    else if(i === n) el.classList.add('active');
+  });
+}
+
+function reiniciar(){
+  if(!confirm('¿Segura? Se borrarán el modelo y la lista actual.')) return;
+  estudiantes=[]; activo=null; modeloAsunto=''; modeloCuerpo='';
+  document.getElementById('input-asunto').value='';
+  document.getElementById('input-modelo').value='';
+  document.getElementById('input-nombres').value='';
+  irPaso1();
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>
