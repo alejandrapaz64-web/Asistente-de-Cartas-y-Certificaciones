@@ -22745,6 +22745,38 @@ label.btn-mini{display:inline-block;margin:0;font-size:0.72rem;}
 .preview-body .pr-verif{display:flex;gap:10px;align-items:center;margin-top:16px;font-size:7.5pt;color:#595959;}
 .preview-body .pr-verif .qr-ph{width:44px;height:44px;border:1px dashed #999;display:flex;align-items:center;justify-content:center;font-size:6.5pt;color:#999;flex-shrink:0;}
 
+.reg-barra{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:white;border:1px solid var(--borde);border-radius:12px;padding:12px 18px;margin-bottom:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);}
+.reg-estado{font-size:0.82rem;color:#333;flex:1;min-width:240px;}
+.reg-barra-acciones{display:flex;gap:8px;}
+#reg-config .card{margin-bottom:14px;}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
+.kpi{background:#f3f6fc;border-radius:10px;padding:10px 12px;border-left:3px solid var(--azul-claro);}
+.kpi .v{font-size:1.25rem;font-weight:700;color:var(--azul);line-height:1.1;}
+.kpi .l{font-size:0.68rem;color:#666;margin-top:2px;}
+.kpi.alerta{border-left-color:#d97706;background:#fff8ed;}
+.kpi.alerta .v{color:#b45309;}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.chip{padding:4px 11px;border-radius:14px;border:1.5px solid var(--borde);background:white;font-size:0.72rem;font-weight:600;color:#555;cursor:pointer;}
+.chip.on{background:var(--azul);border-color:var(--azul);color:white;}
+.chip .n{opacity:0.7;font-weight:500;margin-left:3px;}
+.ev-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:0.68rem;font-weight:700;white-space:nowrap;}
+.ev-dis{background:#e3ecfb;color:#2E5AAC;}
+.ev-def{background:var(--azul);color:white;}
+.tipo-badge{font-size:0.72rem;color:#444;}
+.jur-cab{display:flex;gap:10px;align-items:center;min-width:0;}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--azul);color:white;display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:700;flex-shrink:0;}
+.avatar.f{background:var(--azul-claro);}
+.jur-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px;}
+.tag{font-size:0.64rem;padding:1px 7px;border-radius:8px;background:#eef2f8;color:#445;font-weight:600;}
+.tag.warn{background:#fff3e0;color:#b45309;}
+.tag.ok{background:#e8f6ee;color:#1e7b45;}
+.jur-der{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;}
+.prueba-verif{margin:14px 0 10px;padding-top:12px;border-top:1px solid var(--borde);}
+.prueba-verif .fila-jurado input{flex:1;}
+.verif-ok{color:#1e7b45;font-weight:600;}
+.verif-no{color:#b42318;font-weight:600;}
+@media(max-width:767px){.kpis{grid-template-columns:repeat(2,1fr);}}
+
 /* ═══ RESPONSIVE ═══ */
 
 /* iPad Pro / landscape tablet (1024px) */
@@ -23223,11 +23255,17 @@ label.btn-mini{display:inline-block;margin:0;font-size:0.72rem;}
 
 <!-- ═══════════ PANEL REGISTRO Y JURADOS ═══════════ -->
 <div class="panel" id="panel-registro">
+<div class="reg-barra">
+  <div id="gs-estado" class="reg-estado">⚪ Sin conexión configurada. Los datos se guardan solo en este navegador.</div>
+  <div class="reg-barra-acciones">
+    <button type="button" class="btn-mini" onclick="sincronizarGs()">🔄 Sincronizar</button>
+    <button type="button" class="btn-mini" id="btn-config" onclick="toggleConfigRegistro()">⚙️ Configuración</button>
+  </div>
+</div>
+<div id="reg-config" style="display:none;">
 <div class="layout">
-<div class="col-form">
 <div class="card">
   <h2>☁️ Conexión con Google Sheets</h2>
-  <div id="gs-estado" class="resumen-masivo">⚪ Sin conexión configurada. Los datos se guardan solo en este navegador.</div>
   <div class="field"><label>URL de la aplicación web (Apps Script)</label>
     <input type="text" id="cfg-gs-url" placeholder="https://script.google.com/macros/s/.../exec" oninput="guardarConfig()"></div>
   <div class="field"><label>Clave de acceso</label>
@@ -23237,9 +23275,10 @@ label.btn-mini{display:inline-block;margin:0;font-size:0.72rem;}
     <button type="button" class="btn-mini" onclick="copiarCodigoAppsScript()">📋 Copiar código Apps Script</button>
     <button type="button" class="btn-mini" onclick="descargarCodigoAppsScript()">⬇️ Descargar código</button>
     <button type="button" class="btn-mini" onclick="probarConexionGs()">🔌 Probar conexión</button>
-    <button type="button" class="btn-mini" onclick="sincronizarGs()">🔄 Sincronizar ahora</button>
+    <button type="button" class="btn-mini" onclick="copiarEnlaceConexion()">🔗 Copiar enlace de conexión</button>
   </div>
   <p class="hint" id="gs-msg"></p>
+  <p class="hint">El <strong>enlace de conexión</strong> configura cualquier otro navegador, perfil de Chrome o computador con un solo clic. Guárdalo en un lugar privado: incluye tu clave.</p>
   <div class="pasos">
     <p><strong>Paso 1.</strong> Crea una hoja nueva en Google Sheets, por ejemplo «NEXO · Registro de certificados y jurados».</p>
     <p><strong>Paso 2.</strong> En esa hoja: Extensiones › Apps Script. Borra lo que aparece, pega el código copiado y guarda.</p>
@@ -23248,40 +23287,46 @@ label.btn-mini{display:inline-block;margin:0;font-size:0.72rem;}
   </div>
 </div>
 <div class="card">
+  <h2>🔐 Verificación con código QR</h2>
+  <label class="check-fila"><input type="checkbox" id="cfg-qr" checked onchange="guardarConfig()"> Incluir código de verificación y QR en los certificados</label>
+  <div class="field"><label>URL de la página de verificación en NEXO</label>
+    <input type="text" id="cfg-url" placeholder="Ej: https://usuario.github.io/repositorio/verificar.html" oninput="guardarConfig()">
+    <p class="hint">Debe ser el enlace público de GitHub, nunca una ruta de tu computador (file://).</p></div>
+  <div class="field"><label>Enlace CSV del registro publicado (opcional)</label>
+    <input type="text" id="cfg-csv" placeholder="Solo si no conectas Google Sheets" oninput="guardarConfig()"></div>
+  <div class="acciones-fila"><button type="button" class="btn-mini" onclick="descargarPaginaVerificacion()">⬇️ Descargar página verificar.html</button></div>
+  <div class="prueba-verif">
+    <label>Probar verificación</label>
+    <div class="fila-jurado">
+      <input type="text" id="verif-prueba-codigo" placeholder="Ej: DE-2026-0001">
+      <button type="button" class="btn-mini" onclick="probarVerificacion()">🧪 Probar</button>
+    </div>
+    <div id="verif-prueba-resultado" class="hint"></div>
+  </div>
+  <p class="hint">La verificación pública solo muestra código, tipo, beneficiario, programa, fecha y firmante; nunca números de documento.</p>
+</div>
+</div>
+</div>
+<div class="layout">
+<div class="card">
   <h2>🧾 Registro de emisión</h2>
-  <p class="hint" style="margin:-4px 0 10px;">Cada certificado generado en «Certificado individual» queda registrado con un código consecutivo único por programa y año.</p>
-  <div id="reg-resumen" class="resumen-masivo"></div>
+  <div id="reg-kpis" class="kpis"></div>
+  <div class="chips" id="reg-chips"></div>
   <div class="field"><input type="text" id="reg-buscar" placeholder="Buscar por código, nombre, tipo o título" oninput="renderRegistro()"></div>
   <div id="reg-tabla" style="overflow-x:auto;"></div>
   <div class="acciones-fila">
     <button type="button" class="btn-mini" onclick="exportarRegistroExcel()">⬇️ Descargar Excel</button>
     <label class="btn-mini">⬆️ Importar Excel<input type="file" accept=".xlsx,.xls,.csv" hidden onchange="importarRegistroExcel(this)"></label>
-    <button type="button" class="btn-mini del" onclick="vaciarRegistro()">Vaciar registro</button>
+    <button type="button" class="btn-mini del" onclick="vaciarRegistro()">Vaciar registro local</button>
   </div>
   <p class="hint" id="reg-status"></p>
+  <div id="reg-resumen" style="display:none;"></div>
 </div>
-<div class="card">
-  <h2>🔐 Verificación con código QR</h2>
-  <label class="check-fila"><input type="checkbox" id="cfg-qr" checked onchange="guardarConfig()"> Incluir código de verificación y QR en los certificados</label>
-  <div class="field"><label>URL de la página de verificación en NEXO</label>
-    <input type="text" id="cfg-url" placeholder="Ej: https://usuario.github.io/nexo/verificar.html" oninput="guardarConfig()">
-    <p class="hint">Si la dejas vacía, el QR contiene el código y los datos básicos del certificado.</p></div>
-  <div class="field"><label>Enlace CSV del registro publicado (Google Sheets)</label>
-    <input type="text" id="cfg-csv" placeholder="Solo si no conectas Google Sheets: https://docs.google.com/spreadsheets/d/e/.../pub?output=csv" oninput="guardarConfig()"></div>
-  <button type="button" class="btn-mini" onclick="descargarPaginaVerificacion()">⬇️ Descargar página verificar.html</button>
-  <div class="pasos">
-    <p><strong>Con Google Sheets conectado (recomendado):</strong> descarga verificar.html, súbelo a tu repositorio de NEXO en GitHub y pega su URL arriba. La página consulta la hoja directamente; no necesitas el enlace CSV.</p>
-    <p><strong>Sin conexión:</strong> publica la hoja «Publicar_verificacion» del Excel del registro como CSV (Archivo › Compartir › Publicar en la web) y pega ese enlace.</p>
-    <p class="hint">La verificación pública solo muestra código, tipo, beneficiario, programa, fecha y firmante; nunca números de documento.</p>
-  </div>
-</div>
-</div>
-<div>
 <div class="card">
   <h2>👥 Base de jurados</h2>
-  <p class="hint" style="margin:-4px 0 10px;">Se alimenta sola al generar certificados de evaluador. Completa institución, experticia y perfiles (ORCID, Scholar, CvLAC) aquí, o en Excel y vuelve a importarlo.</p>
-  <div id="jur-resumen" class="resumen-masivo"></div>
-  <div class="field"><input type="text" id="jur-buscar" placeholder="Buscar por nombre, institución, línea o experticia" oninput="renderJurados()"></div>
+  <div id="jur-kpis" class="kpis"></div>
+  <div class="chips" id="jur-chips"></div>
+  <div class="field"><input type="text" id="jur-buscar" placeholder="Buscar por nombre, institución, línea o experticia" oninput="renderBaseJurados()"></div>
   <div id="jur-lista"></div>
   <div class="acciones-fila">
     <button type="button" class="btn-mini" onclick="agregarJuradoBase()">+ Agregar jurado</button>
@@ -23289,7 +23334,7 @@ label.btn-mini{display:inline-block;margin:0;font-size:0.72rem;}
     <label class="btn-mini">⬆️ Importar Excel<input type="file" accept=".xlsx,.xls,.csv" hidden onchange="importarJuradosExcel(this)"></label>
   </div>
   <p class="hint" id="jur-status"></p>
-</div>
+  <div id="jur-resumen" style="display:none;"></div>
 </div>
 </div>
 <datalist id="dl-jurados"></datalist>
@@ -24127,7 +24172,19 @@ function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true
 function normNombre(n){ return String(n||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/^\s*(dra?)\.?\s+/i,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim(); }
 function normClave(k){ return String(k||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,""); }
 function hoyTexto(){ const d=new Date(); return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`; }
-function getConfig(){ return Object.assign({qr:true,url:"",csv:"",gsUrl:"",gsClave:"",gsInicial:false,gsUltima:""}, lsGet(CFG_KEY,{})); }
+const CONEXION_FIJA={
+  gsUrl:"https://script.google.com/macros/s/AKfycbwtbi-6G34AahbBs12BcRhhOkY_cllDrKiXgXmPZJh8krngeXtm9mX-94bi7dEQ1iPj/exec",
+  gsClave:"SUXPGcuhPYEvwn3cn7nY",
+  url:"https://alejandrapaz64-web.github.io/Asistente-de-Cartas-y-Certificaciones/verificar.html"
+};
+function getConfig(){
+  const c=Object.assign({qr:true,url:"",csv:"",gsUrl:"",gsClave:"",gsInicial:false,gsUltima:""}, lsGet(CFG_KEY,{}));
+  if(!c.gsUrl) c.gsUrl=CONEXION_FIJA.gsUrl;
+  if(!c.gsClave) c.gsClave=CONEXION_FIJA.gsClave;
+  if(!c.url||/^file:/i.test(c.url)) c.url=CONEXION_FIJA.url;
+  return c;
+}
+function sinDocumento(r){ return Object.assign({},r,{documento:""}); }
 function guardarConfig(){
   const c=getConfig();
   const v=id=>{ const e=document.getElementById(id); return e?e.value.trim():""; };
@@ -24165,26 +24222,41 @@ function registrarEmision(e){
   const entrada=Object.assign({fecha_emision:hoyTexto(), ts:Date.now()}, e);
   reg.push(entrada);
   const ok=lsSet(REG_KEY,reg);
-  encolarGs("registros",entrada);
+  encolarGs("registros",sinDocumento(entrada));
   renderRegistro();
   return ok;
 }
+window.regFiltro="todos";
+function eventoPorCodigo(){ const m={}; getJurados().forEach(j=>(j.evaluaciones||[]).forEach(e=>{ if(e.codigo) m[e.codigo]=e.tipo; })); return m; }
+function tipoCorto(t){ return String(t||"").replace(/^Certificado\s+/i,""); }
+function setRegFiltro(f){ window.regFiltro=f; renderRegistro(); }
 function renderRegistro(){
   const tabla=document.getElementById("reg-tabla");
   if(!tabla) return;
-  const reg=lsGet(REG_KEY,[]);
-  const q=normNombre((document.getElementById("reg-buscar")||{value:""}).value);
+  const reg=lsGet(REG_KEY,[]).filter(r=>r.codigo);
+  const mapaEv=eventoPorCodigo();
+  const evento=r=>{ const t=r.evento||mapaEv[r.codigo]; return t?(/defensa/i.test(t)?"defensa":"disertacion"):""; };
   const anio=String(new Date().getFullYear());
-  const porTipo={};
-  reg.forEach(r=>{ porTipo[r.tipo]=(porTipo[r.tipo]||0)+1; });
-  document.getElementById("reg-resumen").innerHTML = reg.length
-    ? `<strong>${reg.length}</strong> certificado(s) registrado(s) · <strong>${reg.filter(r=>String(r.codigo).includes("-"+anio+"-")).length}</strong> en ${anio}<br>`+Object.entries(porTipo).sort((a,b)=>b[1]-a[1]).map(([t,n])=>`${escHtml(t)}: ${n}`).join(" · ")
-    : "Aún no hay certificados registrados. Se registran automáticamente al generarlos.";
+  const esEval=r=>/evaluador/i.test(r.tipo), esAs=r=>/asesor/i.test(r.tipo);
+  const n={todos:reg.length, evaluador:reg.filter(esEval).length, defensa:reg.filter(r=>evento(r)==="defensa").length, disertacion:reg.filter(r=>evento(r)==="disertacion").length, asesor:reg.filter(esAs).length};
+  n.otros=reg.length-n.evaluador-n.asesor;
+  document.getElementById("reg-kpis").innerHTML=[
+    [reg.length,"Certificados emitidos"],[reg.filter(r=>String(r.codigo).includes("-"+anio+"-")).length,`Emitidos en ${anio}`],[n.defensa,"Defensas de tesis"],[n.disertacion,"Disertaciones"]
+  ].map(([v,l])=>`<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+  const chips=[["todos","Todos"],["evaluador","Evaluador"],["defensa","Defensas"],["disertacion","Disertaciones"],["asesor","Asesor de Tesis"],["otros","Otros"]].filter(([k])=>k==="todos"||n[k]>0);
+  if(!chips.some(([k])=>k===window.regFiltro)) window.regFiltro="todos";
+  document.getElementById("reg-chips").innerHTML=chips.map(([k,l])=>`<button type="button" class="chip${window.regFiltro===k?" on":""}" onclick="setRegFiltro('${k}')">${l}<span class="n">${n[k]}</span></button>`).join("");
+  const f=window.regFiltro;
+  const pasaFiltro=r=>f==="todos"||(f==="evaluador"&&esEval(r))||(f==="asesor"&&esAs(r))||(f==="otros"&&!esEval(r)&&!esAs(r))||((f==="defensa"||f==="disertacion")&&evento(r)===f);
+  const q=normNombre((document.getElementById("reg-buscar")||{value:""}).value);
   const tsNum=x=>Number(x.ts)||Date.parse(x.ts)||0;
-  const filtrados=reg.slice().sort((a,b)=>tsNum(b)-tsNum(a)||String(b.codigo).localeCompare(String(a.codigo))).filter(r=>!q||normNombre([r.codigo,r.tipo,r.beneficiario,r.estudiante,r.titulo,r.programa].join(" ")).includes(q));
-  tabla.innerHTML = filtrados.length ? `<table class="tabla-estudiantes"><thead><tr><th>Código</th><th>Fecha</th><th>Tipo</th><th>Beneficiario</th><th>Relacionado</th></tr></thead><tbody>${
-    filtrados.slice(0,150).map(r=>`<tr><td style="white-space:nowrap;font-weight:600;">${escHtml(r.codigo)}${r.estado&&r.estado!=="Emitido"?`<br><span class="aviso-acta">${escHtml(r.estado)}</span>`:""}</td><td style="white-space:nowrap;">${escHtml(r.fecha_emision)}</td><td>${escHtml(r.tipo)}</td><td>${escHtml(r.beneficiario)}</td><td>${escHtml(r.estudiante||"")}</td></tr>`).join("")
-  }</tbody></table>${filtrados.length>150?`<p class="hint">Se muestran 150 de ${filtrados.length}. Usa el buscador o descarga el Excel.</p>`:""}` : (reg.length?`<p class="hint">Sin resultados.</p>`:"");
+  const filtrados=reg.slice().sort((a,b)=>tsNum(b)-tsNum(a)||String(b.codigo).localeCompare(String(a.codigo)))
+    .filter(r=>pasaFiltro(r)&&(!q||normNombre([r.codigo,r.tipo,r.beneficiario,r.estudiante,r.titulo,r.programa].join(" ")).includes(q)));
+  const badge=r=>{ const e=evento(r); return e==="defensa"?'<span class="ev-badge ev-def">Defensa</span>':e==="disertacion"?'<span class="ev-badge ev-dis">Disertación</span>':'<span class="hint">—</span>'; };
+  tabla.innerHTML = filtrados.length ? `<table class="tabla-estudiantes"><thead><tr><th>Código</th><th>Fecha</th><th>Tipo</th><th>Evento</th><th>Beneficiario</th><th>Relacionado</th></tr></thead><tbody>${
+    filtrados.slice(0,150).map(r=>`<tr><td style="white-space:nowrap;font-weight:600;">${escHtml(r.codigo)}${r.estado&&r.estado!=="Emitido"?`<br><span class="aviso-acta">${escHtml(r.estado)}</span>`:""}</td><td style="white-space:nowrap;">${escHtml(r.fecha_emision)}</td><td class="tipo-badge">${escHtml(tipoCorto(r.tipo))}</td><td>${badge(r)}</td><td>${escHtml(r.beneficiario)}</td><td>${escHtml(r.estudiante||"")}</td></tr>`).join("")
+  }</tbody></table>${filtrados.length>150?`<p class="hint">Se muestran 150 de ${filtrados.length}. Usa el buscador o descarga el Excel.</p>`:""}`
+  : `<p class="hint" style="padding:10px 0;">${reg.length?"Sin resultados para este filtro.":"Aún no hay certificados registrados. Se registran automáticamente al generarlos."}</p>`;
 }
 const REG_COLUMNAS=[["codigo","Código"],["fecha_emision","Fecha de emisión"],["fecha_documento","Fecha del documento"],["tipo","Tipo de documento"],["beneficiario","Beneficiario"],["documento","Documento"],["programa","Programa"],["estudiante","Estudiante relacionado"],["titulo","Título del trabajo"],["firmante","Firmante"],["archivo","Archivo"],["modo","Modo"]];
 const REG_PUBLICAS=["codigo","tipo","beneficiario","programa","fecha_emision","firmante"];
@@ -24322,7 +24394,9 @@ async function verificar(){
   const codigo=document.getElementById("c").value.trim().toUpperCase();
   const r=document.getElementById("r");
   if(!codigo)return;
-  r.hidden=false;r.innerHTML="Consultando el registro...";
+  r.hidden=false;
+  if(!GS_URL&&!CSV_URL){r.innerHTML='<p class="estado no">Esta página no tiene enlace al registro.</p><p>Descárgala de nuevo desde la herramienta (después de conectar Google Sheets) y vuelve a subirla a GitHub.</p>';return;}
+  r.innerHTML="Consultando el registro...";
   const etiquetas=[["codigo","Código"],["tipo","Tipo de documento"],["beneficiario","Beneficiario"],["programa","Programa"],["fecha_emision","Fecha de emisión"],["firmante","Firmante"]];
   try{
     if(GS_URL){
@@ -24410,31 +24484,53 @@ function agregarJuradoBase(){
   const lista=getJurados(); const j=nuevoJurado("Dr.","Nuevo jurado"); lista.unshift(j); setJurados(lista);
   document.getElementById("jur-buscar").value=""; renderBaseJurados(j.id);
 }
+window.jurFiltro="todos";
+function setJurFiltro(f){ window.jurFiltro=f; renderBaseJurados(); }
+function sinPerfil(j){ return !j.orcid&&!j.scholar&&!j.cvlac; }
 function actualizarResumenJurados(){
-  const r=document.getElementById("jur-resumen"); if(!r) return;
+  const k=document.getElementById("jur-kpis"); if(!k) return;
   const l=getJurados();
-  const sinPerfil=l.filter(j=>!j.orcid&&!j.scholar&&!j.cvlac).length;
-  const sinExp=l.filter(j=>!String(j.experticia||"").trim()).length;
-  r.innerHTML=l.length?`<strong>${l.length}</strong> jurado(s) · <strong>${l.reduce((t,j)=>t+(j.evaluaciones||[]).length,0)}</strong> evaluación(es) registradas<br>Sin perfil académico: ${sinPerfil} · Sin experticia: ${sinExp}`:"Aún no hay jurados. Se agregan al generar certificados de evaluador o al importar un Excel.";
+  const evs=l.reduce((t,j)=>t+(j.evaluaciones||[]).length,0);
+  const sp=l.filter(sinPerfil).length, se=l.filter(j=>!String(j.experticia||"").trim()).length;
+  k.innerHTML=[[l.length,"Jurados",""],[evs,"Evaluaciones",""],[sp,"Sin perfil académico",sp?"alerta":""],[se,"Sin experticia",se?"alerta":""]]
+    .map(([v,t,c])=>`<div class="kpi ${c}"><div class="v">${v}</div><div class="l">${t}</div></div>`).join("");
+  const n={todos:l.length,incompletos:l.filter(j=>sinPerfil(j)||!j.institucion).length};
+  n.completos=l.length-n.incompletos;
+  const chips=[["todos","Todos"],["incompletos","Por completar"],["completos","Completos"]];
+  document.getElementById("jur-chips").innerHTML=chips.map(([c,t])=>`<button type="button" class="chip${window.jurFiltro===c?" on":""}" onclick="setJurFiltro('${c}')">${t}<span class="n">${n[c]}</span></button>`).join("");
 }
+function iniciales(n){ const p=String(n||"").split(/\s+/).filter(x=>x&&!/^(de|del|la|los|las|y)$/i.test(x)); return ((p[0]||"")[0]||"").toUpperCase()+((p.length>2?p[p.length-2]:p[1]||"")[0]||"").toUpperCase(); }
 function renderBaseJurados(abrirId){
   const cont=document.getElementById("jur-lista"); if(!cont) return;
   actualizarResumenJurados();
   const q=normNombre((document.getElementById("jur-buscar")||{value:""}).value);
-  const lista=getJurados().filter(j=>!q||normNombre([j.nombre,j.institucion,j.pais,j.linea,j.experticia].join(" ")).includes(q))
+  const f=window.jurFiltro;
+  const lista=getJurados().filter(j=>(!q||normNombre([j.nombre,j.institucion,j.pais,j.linea,j.experticia].join(" ")).includes(q))
+      &&(f==="todos"||(f==="incompletos"&&(sinPerfil(j)||!j.institucion))||(f==="completos"&&!sinPerfil(j)&&j.institucion)))
     .sort((a,b)=>a.nombre.localeCompare(b.nombre,"es"));
-  cont.innerHTML=lista.map(j=>`
+  cont.innerHTML=lista.map(j=>{
+    const evs=j.evaluaciones||[];
+    const nDef=evs.filter(e=>e.tipo==="defensa").length, nDis=evs.length-nDef;
+    const tags=[];
+    tags.push(j.institucion?`<span class="tag">${escHtml([j.institucion,j.pais].filter(Boolean).join(", "))}</span>`:`<span class="tag warn">Institución por completar</span>`);
+    tags.push(sinPerfil(j)?`<span class="tag warn">Sin perfil académico</span>`:`<span class="tag ok">${[j.orcid&&"ORCID",j.scholar&&"Scholar",j.cvlac&&"CvLAC"].filter(Boolean).join(" · ")}</span>`);
+    if(j.linea) tags.push(`<span class="tag">${escHtml(j.linea.replace(/ \(TIC\)$/,""))}</span>`);
+    return `
     <details class="bloque-item jur-item"${j.id===abrirId?" open":""}>
-      <summary><span><span class="jn" id="jn-${j.id}">${escHtml(j.tratamiento)} ${escHtml(j.nombre)}</span><br><span class="ji">${escHtml([j.institucion,j.pais].filter(Boolean).join(", ")||"Institución por completar")}</span></span><span class="badge-cert">${(j.evaluaciones||[]).length} evaluación(es)</span></summary>
+      <summary>
+        <span class="jur-cab"><span class="avatar${j.tratamiento==="Dra."?" f":""}">${escHtml(iniciales(j.nombre))}</span>
+          <span style="min-width:0;"><span class="jn" id="jn-${j.id}">${escHtml(j.tratamiento)} ${escHtml(j.nombre)}</span><span class="jur-tags">${tags.join("")}</span></span></span>
+        <span class="jur-der"><span class="badge-cert">${evs.length} evaluación(es)</span>${evs.length?`<span class="ji">${nDef?`Defensa ${nDef}`:""}${nDef&&nDis?" · ":""}${nDis?`Disertación ${nDis}`:""}</span>`:""}</span>
+      </summary>
       <div class="grid-2">
         <div class="field"><label>Tratamiento</label><select onchange="jurSet('${j.id}','tratamiento',this.value)"><option value="Dr."${j.tratamiento==="Dr."?" selected":""}>Dr.</option><option value="Dra."${j.tratamiento==="Dra."?" selected":""}>Dra.</option></select></div>
         <div class="field"><label>Nombre</label><input type="text" value="${escHtml(j.nombre)}" oninput="jurSet('${j.id}','nombre',this.value)"></div>
         <div class="field" style="grid-column:1/-1;"><label>Línea de investigación afín</label><select onchange="jurSet('${j.id}','linea',this.value)"><option value="">— Selecciona —</option>${LINEAS_INVESTIGACION.map(l=>`<option${j.linea===l?" selected":""}>${escHtml(l)}</option>`).join("")}</select></div>
         ${JUR_CAMPOS.map(([k,l])=>`<div class="field"${k==="experticia"?' style="grid-column:1/-1;"':""}><label>${l}</label><input type="text" value="${escHtml(j[k]||"")}" oninput="jurSet('${j.id}','${k}',this.value)"></div>`).join("")}
       </div>
-      <div class="jur-evals">${(j.evaluaciones||[]).length?(j.evaluaciones||[]).map(e=>`<p>• ${escHtml(e.tipo==="defensa"?"Defensa":"Disertación")} ${escHtml(e.fecha||"")}: ${escHtml(e.estudiante)}, «${escHtml(e.titulo)}»</p>`).join(""):'<p class="hint">Sin evaluaciones registradas.</p>'}</div>
+      <div class="jur-evals">${evs.length?evs.map(e=>`<p><span class="ev-badge ${e.tipo==="defensa"?"ev-def":"ev-dis"}">${e.tipo==="defensa"?"Defensa":"Disertación"}</span> ${escHtml(e.fecha||"")} · ${escHtml(e.estudiante)}, «${escHtml(e.titulo)}»</p>`).join(""):'<p class="hint">Sin evaluaciones registradas.</p>'}</div>
       <div class="acciones-fila"><button type="button" class="btn-mini del" onclick="eliminarJuradoBase('${j.id}')">Quitar de la base</button></div>
-    </details>`).join("") || (getJurados().length?'<p class="hint">Sin resultados.</p>':"");
+    </details>`;}).join("") || `<p class="hint" style="padding:10px 0;">${getJurados().length?"Sin resultados para este filtro.":"Aún no hay jurados. Se agregan al generar certificados de evaluador o al importar un Excel."}</p>`;
 }
 function exportarJuradosExcel(){
   const l=getJurados();
@@ -24620,14 +24716,14 @@ const PEND_KEY="nexo_pendientes_v1";
 function gsConfig(){ const c=getConfig(); return (c.gsUrl&&c.gsClave)?c:null; }
 async function gsLlamar(accion,datos){
   const c=gsConfig(); if(!c) throw new Error("Conexión no configurada");
-  const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),30000);
+  let t;
+  const limite=new Promise((_,rej)=>{ t=setTimeout(()=>rej(new Error("Google Sheets no respondió a tiempo")),30000); });
   try{
-    const res=await fetch(c.gsUrl,{method:"POST",body:JSON.stringify({clave:c.gsClave,accion,datos}),signal:ctrl.signal});
-    const j=await res.json();
+    const res=await Promise.race([fetch(c.gsUrl,{method:"POST",body:JSON.stringify({clave:c.gsClave,accion,datos})}),limite]);
+    const j=await Promise.race([res.json(),limite]);
     if(!j.ok) throw new Error(j.error||"Error en Google Sheets");
     return j;
   }catch(e){
-    if(e.name==="AbortError") throw new Error("Google Sheets no respondió a tiempo");
     if(e instanceof SyntaxError) throw new Error("La URL no corresponde a la aplicación web de Apps Script");
     throw e;
   }finally{ clearTimeout(t); }
@@ -24676,7 +24772,7 @@ async function sincronizarGs(silencioso){
   const p=getPendientes(); const n1=p.registros.length, n2=p.jurados.length;
   const datos={registros:p.registros.slice(),jurados:p.jurados.slice()};
   if(!cfg.gsInicial){
-    datos.registros=lsGet(REG_KEY,[]).filter(r=>r.codigo).concat(datos.registros);
+    datos.registros=lsGet(REG_KEY,[]).filter(r=>r.codigo).map(sinDocumento).concat(datos.registros);
     datos.jurados=getJurados().map(j=>({id:j.id,tratamiento:j.tratamiento,nombre:j.nombre,institucion:j.institucion,pais:j.pais,linea:j.linea,experticia:j.experticia,correo:j.correo,orcid:j.orcid,scholar:j.scholar,cvlac:j.cvlac,evaluaciones:j.evaluaciones||[]})).concat(datos.jurados);
   }
   estadoGs(null,"Sincronizando con Google Sheets...");
@@ -24712,6 +24808,7 @@ function estadoGs(ok,texto){
   if(ok===null){ el.innerHTML="🔄 "+escHtml(texto||"Sincronizando..."); return; }
   if(ok===false){ el.innerHTML=`🔴 Sin conexión con Google Sheets${texto?` (${escHtml(texto)})`:""}. Los datos quedan en este navegador y se enviarán al reconectar.${pend?` Pendientes: ${pend}.`:""}`; return; }
   if(!cfg.gsUltima){ el.innerHTML="🟡 Conexión configurada. Pulsa «Probar conexión»."; return; }
+  if(cfg.url&&!/^https:\/\//i.test(cfg.url)){ el.innerHTML="🟡 Conectado con Google Sheets, pero la URL de verificación no es un enlace público (https://). Corrígela en Configuración."; return; }
   el.innerHTML=`🟢 Conectado con Google Sheets. Última sincronización: ${escHtml(String(cfg.gsUltima).replace(/\.$/,""))}.${pend?` Cambios pendientes: ${pend}.`:" Todo al día."}`;
 }
 function generarClaveGs(){
@@ -24734,7 +24831,69 @@ async function copiarCodigoAppsScript(){
   catch(e){ descargarCodigoAppsScript(); }
 }
 
+function toggleConfigRegistro(abrir){
+  const c=document.getElementById("reg-config"), b=document.getElementById("btn-config");
+  if(!c) return;
+  const ver = abrir===undefined ? c.style.display==="none" : abrir;
+  c.style.display=ver?"block":"none";
+  if(b) b.textContent=ver?"⚙️ Ocultar configuración":"⚙️ Configuración";
+}
+async function probarVerificacion(){
+  const out=document.getElementById("verif-prueba-resultado");
+  const codigo=document.getElementById("verif-prueba-codigo").value.trim().toUpperCase();
+  const cfg=getConfig();
+  if(!codigo){ out.innerHTML="Escribe un código del registro, por ejemplo DE-2026-0001."; return; }
+  if(!cfg.gsUrl){ out.innerHTML='<span class="verif-no">Conecta primero Google Sheets.</span>'; return; }
+  out.textContent="Consultando la hoja...";
+  try{
+    const res=await fetch(cfg.gsUrl+(cfg.gsUrl.includes("?")?"&":"?")+"accion=verificar&c="+encodeURIComponent(codigo));
+    const j=await res.json();
+    if(!j.ok) throw new Error(j.error||"");
+    const urlOk=cfg.url&&/^https:\/\//i.test(cfg.url);
+    const enlace=urlOk?` <a href="${escHtml(urlVerificacion(codigo))}" target="_blank" rel="noopener">Abrir la página pública ↗</a>`:` <span class="verif-no">Falta la URL pública (https://) de verificar.html.</span>`;
+    out.innerHTML = j.encontrado
+      ? `<span class="verif-ok">✓ La hoja responde: ${escHtml(j.datos.tipo)} · ${escHtml(j.datos.beneficiario)} · ${escHtml(j.datos.fecha_emision)}${j.datos.estado&&j.datos.estado!=="Emitido"?` · Estado: ${escHtml(j.datos.estado)}`:""}.</span>${enlace}`
+      : `<span class="verif-no">✕ El código ${escHtml(codigo)} no está en la hoja.</span>`;
+  }catch(e){
+    console.error(e);
+    out.innerHTML='<span class="verif-no">La hoja no respondió a la consulta pública.</span> Publica una nueva versión del Apps Script (Implementar › Gestionar implementaciones › ✏️ › Nueva versión) y confirma que el acceso sea «Cualquier persona».';
+  }
+}
+
+function enlaceConexion(){
+  const c=getConfig();
+  const datos=btoa(unescape(encodeURIComponent(JSON.stringify({u:c.gsUrl,k:c.gsClave,v:c.url,q:c.qr}))));
+  return location.origin+location.pathname+"#nexo="+datos;
+}
+async function copiarEnlaceConexion(){
+  const msg=document.getElementById("gs-msg");
+  if(!gsConfig()){ msg.textContent="Conecta primero Google Sheets en este navegador."; return; }
+  const enlace=enlaceConexion();
+  try{ await navigator.clipboard.writeText(enlace); msg.textContent="✅ Enlace de conexión copiado. Ábrelo una sola vez en el otro navegador o computador y quedará conectado."; }
+  catch(e){ prompt("Copia este enlace de conexión:",enlace); }
+}
+function aplicarEnlaceConexion(){
+  const h=location.hash||"";
+  if(!h.startsWith("#nexo=")) return false;
+  try{
+    const d=JSON.parse(decodeURIComponent(escape(atob(h.slice(6)))));
+    const c=getConfig();
+    if(d.u) c.gsUrl=d.u; if(d.k) c.gsClave=d.k; if(d.v) c.url=d.v; if(typeof d.q==="boolean") c.qr=d.q;
+    c.gsInicial=false; c.gsUltima="";
+    lsSet(CFG_KEY,c);
+  }catch(e){ console.error(e); }
+  history.replaceState(null,"",location.pathname+location.search);
+  return true;
+}
+let __autoSync=null;
+function iniciarSincronizacionAutomatica(){
+  clearInterval(__autoSync);
+  __autoSync=setInterval(()=>{ if(gsConfig()&&document.visibilityState==="visible") sincronizarGs(true); },120000);
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&gsConfig()) sincronizarGs(true); });
+}
+
 function initRegistroJurados(){
+  const desdeEnlace=aplicarEnlaceConexion();
   const c=getConfig();
   const q=document.getElementById("cfg-qr"); if(q) q.checked=c.qr;
   const u=document.getElementById("cfg-url"); if(u) u.value=c.url;
@@ -24742,7 +24901,10 @@ function initRegistroJurados(){
   const gu=document.getElementById("cfg-gs-url"); if(gu) gu.value=c.gsUrl;
   const gk=document.getElementById("cfg-gs-clave"); if(gk) gk.value=c.gsClave;
   renderRegistro(); renderBaseJurados(); actualizarDatalistJurados(); estadoGs();
+  toggleConfigRegistro(!gsConfig()||!/^https:\/\//i.test(c.url||"https://"));
   if(gsConfig()) sincronizarGs(true);
+  iniciarSincronizacionAutomatica();
+  if(desdeEnlace&&gsConfig()){ switchTab("registro"); const m=document.getElementById("gs-msg"); if(m) m.textContent="✅ Navegador conectado con el enlace de conexión."; }
 }
 window.addEventListener("load", initRegistroJurados);
 
