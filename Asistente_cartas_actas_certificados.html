@@ -22788,6 +22788,11 @@ body.bloqueado > :not(#acceso-gate){visibility:hidden;}
 .acceso-card input[type=password]:focus{outline:2px solid var(--azul-claro);}
 .acceso-msg{font-size:0.8rem;color:var(--rojo);margin-top:10px;min-height:1em;text-align:center;}
 
+.sel-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#f3f6fc;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:0.78rem;}
+.sel-n{font-weight:700;color:var(--azul);}
+.tabla-estudiantes tr.fila-sel td{background:#eef3fb;}
+.tabla-estudiantes input[type=checkbox],.jur-check{width:15px;height:15px;cursor:pointer;accent-color:var(--azul);flex-shrink:0;}
+
 /* ═══ RESPONSIVE ═══ */
 
 /* iPad Pro / landscape tablet (1024px) */
@@ -22869,7 +22874,6 @@ body.bloqueado > :not(#acceso-gate){visibility:hidden;}
     <p class="acceso-sub">Facultad de Educación · Acceso restringido</p>
     <label for="acceso-pw">Contraseña</label>
     <input type="password" id="acceso-pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')intentarAcceso()">
-    <label class="check-fila"><input type="checkbox" id="acceso-recordar" checked> Recordar en este computador</label>
     <button type="button" id="acceso-btn" class="btn-generar" onclick="intentarAcceso()">Ingresar</button>
     <p id="acceso-msg" class="acceso-msg" aria-live="polite"></p>
   </div>
@@ -23337,11 +23341,11 @@ body.bloqueado > :not(#acceso-gate){visibility:hidden;}
   <div id="reg-kpis" class="kpis"></div>
   <div class="chips" id="reg-chips"></div>
   <div class="field"><input type="text" id="reg-buscar" placeholder="Buscar por código, nombre, tipo o título" oninput="renderRegistro()"></div>
+  <div id="reg-sel-bar" class="sel-bar" style="display:none;"></div>
   <div id="reg-tabla" style="overflow-x:auto;"></div>
   <div class="acciones-fila">
     <button type="button" class="btn-mini" onclick="exportarRegistroExcel()">⬇️ Descargar Excel</button>
     <label class="btn-mini">⬆️ Importar Excel<input type="file" accept=".xlsx,.xls,.csv" hidden onchange="importarRegistroExcel(this)"></label>
-    <button type="button" class="btn-mini del" onclick="vaciarRegistro()">Vaciar registro local</button>
   </div>
   <p class="hint" id="reg-status"></p>
   <div id="reg-resumen" style="display:none;"></div>
@@ -23351,6 +23355,7 @@ body.bloqueado > :not(#acceso-gate){visibility:hidden;}
   <div id="jur-kpis" class="kpis"></div>
   <div class="chips" id="jur-chips"></div>
   <div class="field"><input type="text" id="jur-buscar" placeholder="Buscar por nombre, institución, línea o experticia" oninput="renderBaseJurados()"></div>
+  <div id="jur-sel-bar" class="sel-bar" style="display:none;"></div>
   <div id="jur-lista"></div>
   <div class="acciones-fila">
     <button type="button" class="btn-mini" onclick="agregarJuradoBase()">+ Agregar jurado</button>
@@ -23430,11 +23435,13 @@ function anexar(h, filas) {
 function reservar(d) {
   const pref = String(d.prefijo || "FE-");
   const cantidad = Math.max(1, Math.min(500, parseInt(d.cantidad, 10) || 1));
-  let max = 0;
+  const props = PropertiesService.getScriptProperties();
+  let max = parseInt(props.getProperty("max_" + pref) || "0", 10) || 0;
   leer("Registro").forEach(function (r) {
     const c = String(r.codigo || "");
     if (c.indexOf(pref) === 0) { const n = parseInt(c.slice(pref.length), 10); if (n > max) max = n; }
   });
+  props.setProperty("max_" + pref, String(max + cantidad));
   const codigos = [], filas = [];
   for (let i = 1; i <= cantidad; i++) {
     const c = pref + ("0000" + (max + i)).slice(-4);
@@ -23499,6 +23506,24 @@ function registrar(d) {
   return { ok: true };
 }
 
+function eliminarRegistros(d) {
+  const cods = {};
+  (d.codigos || []).forEach(function (c) { cods[String(c)] = true; });
+  if (!Object.keys(cods).length) return { eliminados: 0 };
+  const hR = hoja("Registro");
+  const regs = leer("Registro").filter(function (r) { return cods[String(r.codigo)]; }).sort(function (a, b) { return b._fila - a._fila; });
+  regs.forEach(function (r) { hR.deleteRow(r._fila); });
+  const hE = hoja("Evaluaciones");
+  leer("Evaluaciones").filter(function (e) { return cods[String(e.codigo)]; }).sort(function (a, b) { return b._fila - a._fila; })
+    .forEach(function (e) { hE.deleteRow(e._fila); });
+  return { eliminados: regs.length };
+}
+
+function eliminarJurados(d) {
+  (d.lista || []).forEach(function (j) { eliminarJurado(j); });
+  return { ok: true };
+}
+
 function eliminarJurado(d) {
   const hJ = hoja("Jurados");
   const j = leer("Jurados").find(function (x) { return (d.id && x.id === d.id) || norm(x.nombre) === norm(d.nombre); });
@@ -23543,6 +23568,8 @@ function doPost(e) {
       case "reservar": r = reservar(p.datos || {}); break;
       case "registrar": r = registrar(p.datos || {}); break;
       case "eliminarJurado": r = eliminarJurado(p.datos || {}); break;
+      case "eliminarJurados": r = eliminarJurados(p.datos || {}); break;
+      case "eliminarRegistros": r = eliminarRegistros(p.datos || {}); break;
       case "sincronizar": registrar(p.datos || {}); r = obtener(); break;
       case "obtener": r = obtener(); break;
       default: return salida({ ok: false, error: "Acción no válida" });
@@ -24277,12 +24304,16 @@ function renderRegistro(){
   const f=window.regFiltro;
   const pasaFiltro=r=>f==="todos"||(f==="evaluador"&&esEval(r))||(f==="asesor"&&esAs(r))||(f==="otros"&&!esEval(r)&&!esAs(r))||((f==="defensa"||f==="disertacion")&&evento(r)===f);
   const q=normNombre((document.getElementById("reg-buscar")||{value:""}).value);
+  const codigosExist=new Set(reg.map(r=>r.codigo));
+  [...window.regSel].forEach(c=>{ if(!codigosExist.has(c)) window.regSel.delete(c); });
   const tsNum=x=>Number(x.ts)||Date.parse(x.ts)||0;
   const filtrados=reg.slice().sort((a,b)=>tsNum(b)-tsNum(a)||String(b.codigo).localeCompare(String(a.codigo)))
     .filter(r=>pasaFiltro(r)&&(!q||normNombre([r.codigo,r.tipo,r.beneficiario,r.estudiante,r.titulo,r.programa].join(" ")).includes(q)));
   const badge=r=>{ const e=evento(r); return e==="defensa"?'<span class="ev-badge ev-def">Defensa</span>':e==="disertacion"?'<span class="ev-badge ev-dis">Disertación</span>':'<span class="hint">—</span>'; };
-  tabla.innerHTML = filtrados.length ? `<table class="tabla-estudiantes"><thead><tr><th>Código</th><th>Fecha</th><th>Tipo</th><th>Evento</th><th>Beneficiario</th><th>Relacionado</th></tr></thead><tbody>${
-    filtrados.slice(0,150).map(r=>`<tr><td style="white-space:nowrap;font-weight:600;">${escHtml(r.codigo)}${r.estado&&r.estado!=="Emitido"?`<br><span class="aviso-acta">${escHtml(r.estado)}</span>`:""}</td><td style="white-space:nowrap;">${escHtml(r.fecha_emision)}</td><td class="tipo-badge">${escHtml(tipoCorto(r.tipo))}</td><td>${badge(r)}</td><td>${escHtml(r.beneficiario)}</td><td>${escHtml(r.estudiante||"")}</td></tr>`).join("")
+  window.__regVisibles=filtrados.slice(0,150).map(r=>r.codigo);
+  barraSeleccion("reg");
+  tabla.innerHTML = filtrados.length ? `<table class="tabla-estudiantes"><thead><tr><th style="width:28px;"><input type="checkbox" title="Seleccionar todos" ${filtrados.length&&filtrados.slice(0,150).every(r=>window.regSel.has(r.codigo))?"checked":""} onchange="selTodosRegistro(this.checked)"></th><th>Código</th><th>Fecha</th><th>Tipo</th><th>Evento</th><th>Beneficiario</th><th>Relacionado</th></tr></thead><tbody>${
+    filtrados.slice(0,150).map(r=>`<tr${window.regSel.has(r.codigo)?' class="fila-sel"':""}><td><input type="checkbox" ${window.regSel.has(r.codigo)?"checked":""} onchange="selRegistro('${escHtml(r.codigo)}',this.checked)"></td><td style="white-space:nowrap;font-weight:600;">${escHtml(r.codigo)}${r.estado&&r.estado!=="Emitido"?`<br><span class="aviso-acta">${escHtml(r.estado)}</span>`:""}</td><td style="white-space:nowrap;">${escHtml(r.fecha_emision)}</td><td class="tipo-badge">${escHtml(tipoCorto(r.tipo))}</td><td>${badge(r)}</td><td>${escHtml(r.beneficiario)}</td><td>${escHtml(r.estudiante||"")}</td></tr>`).join("")
   }</tbody></table>${filtrados.length>150?`<p class="hint">Se muestran 150 de ${filtrados.length}. Usa el buscador o descarga el Excel.</p>`:""}`
   : `<p class="hint" style="padding:10px 0;">${reg.length?"Sin resultados para este filtro.":"Aún no hay certificados registrados. Se registran automáticamente al generarlos."}</p>`;
 }
@@ -24533,9 +24564,13 @@ function renderBaseJurados(abrirId){
   actualizarResumenJurados();
   const q=normNombre((document.getElementById("jur-buscar")||{value:""}).value);
   const f=window.jurFiltro;
+  const idsExist=new Set(getJurados().map(j=>j.id));
+  [...window.jurSel].forEach(id=>{ if(!idsExist.has(id)) window.jurSel.delete(id); });
   const lista=getJurados().filter(j=>(!q||normNombre([j.nombre,j.institucion,j.pais,j.linea,j.experticia].join(" ")).includes(q))
       &&(f==="todos"||(f==="incompletos"&&(sinPerfil(j)||!j.institucion))||(f==="completos"&&!sinPerfil(j)&&j.institucion)))
     .sort((a,b)=>a.nombre.localeCompare(b.nombre,"es"));
+  window.__jurVisibles=lista.map(j=>j.id);
+  barraSeleccion("jur");
   cont.innerHTML=lista.map(j=>{
     const evs=j.evaluaciones||[];
     const nDef=evs.filter(e=>e.tipo==="defensa").length, nDis=evs.length-nDef;
@@ -24546,7 +24581,7 @@ function renderBaseJurados(abrirId){
     return `
     <details class="bloque-item jur-item"${j.id===abrirId?" open":""}>
       <summary>
-        <span class="jur-cab"><span class="avatar${j.tratamiento==="Dra."?" f":""}">${escHtml(iniciales(j.nombre))}</span>
+        <span class="jur-cab"><input type="checkbox" class="jur-check" ${window.jurSel.has(j.id)?"checked":""} onclick="event.stopPropagation()" onchange="selJurado('${j.id}',this.checked)"><span class="avatar${j.tratamiento==="Dra."?" f":""}">${escHtml(iniciales(j.nombre))}</span>
           <span style="min-width:0;"><span class="jn" id="jn-${j.id}">${escHtml(j.tratamiento)} ${escHtml(j.nombre)}</span><span class="jur-tags">${tags.join("")}</span></span></span>
         <span class="jur-der"><span class="badge-cert">${evs.length} evaluación(es)</span>${evs.length?`<span class="ji">${nDef?`Defensa ${nDef}`:""}${nDef&&nDis?" · ":""}${nDis?`Disertación ${nDis}`:""}</span>`:""}</span>
       </summary>
@@ -24859,6 +24894,54 @@ async function copiarCodigoAppsScript(){
   catch(e){ descargarCodigoAppsScript(); }
 }
 
+window.regSel=new Set(); window.jurSel=new Set();
+function selRegistro(c,v){ v?window.regSel.add(c):window.regSel.delete(c); renderRegistro(); }
+function selTodosRegistro(v){ (window.__regVisibles||[]).forEach(c=>v?window.regSel.add(c):window.regSel.delete(c)); renderRegistro(); }
+function selJurado(id,v){ v?window.jurSel.add(id):window.jurSel.delete(id); barraSeleccion("jur"); }
+function selTodosJurados(v){ (window.__jurVisibles||[]).forEach(id=>v?window.jurSel.add(id):window.jurSel.delete(id)); renderBaseJurados(); }
+function barraSeleccion(tipo){
+  const bar=document.getElementById(tipo+"-sel-bar"); if(!bar) return;
+  const set=tipo==="reg"?window.regSel:window.jurSel;
+  const n=set.size;
+  if(tipo==="jur"){
+    const vis=window.__jurVisibles||[];
+    bar.style.display=vis.length?"flex":"none";
+    bar.innerHTML=`<label class="check-fila" style="margin:0;"><input type="checkbox" ${vis.length&&vis.every(id=>set.has(id))?"checked":""} onchange="selTodosJurados(this.checked)"> Seleccionar todos</label>`
+      +(n?`<span class="sel-n">${n} seleccionado(s)</span><button type="button" class="btn-mini del" onclick="eliminarJuradosSeleccionados()">🗑 Eliminar</button><button type="button" class="btn-mini" onclick="window.jurSel.clear();renderBaseJurados();">Cancelar</button>`:"");
+    return;
+  }
+  bar.style.display=n?"flex":"none";
+  bar.innerHTML=n?`<span class="sel-n">${n} certificado(s) seleccionado(s)</span><button type="button" class="btn-mini del" onclick="eliminarRegistrosSeleccionados()">🗑 Eliminar</button><button type="button" class="btn-mini" onclick="window.regSel.clear();renderRegistro();">Cancelar</button>`:"";
+}
+async function eliminarRegistrosSeleccionados(){
+  const codigos=[...window.regSel];
+  if(!codigos.length) return;
+  if(!confirm(`¿Eliminar ${codigos.length} certificado(s) del registro?\n\nTambién se quitarán las evaluaciones asociadas en la base de jurados. Los archivos Word ya descargados no cambian y los códigos eliminados no se volverán a usar.`)) return;
+  const set=new Set(codigos);
+  lsSet(REG_KEY,lsGet(REG_KEY,[]).filter(r=>!set.has(r.codigo)));
+  const p=getPendientes(); p.registros=p.registros.filter(r=>!set.has(r.codigo)); lsSet(PEND_KEY,p);
+  const lista=getJurados(); lista.forEach(j=>{ j.evaluaciones=(j.evaluaciones||[]).filter(e=>!set.has(e.codigo)); }); setJurados(lista);
+  window.regSel.clear(); renderRegistro(); renderBaseJurados();
+  const st=document.getElementById("reg-status");
+  if(!gsConfig()){ st.textContent=`✅ ${codigos.length} certificado(s) eliminado(s) de este navegador.`; return; }
+  st.textContent="Eliminando en Google Sheets...";
+  try{ await gsLlamar("eliminarRegistros",{codigos}); st.textContent=`✅ ${codigos.length} certificado(s) eliminado(s) del registro y de Google Sheets.`; }
+  catch(e){ console.error(e); st.textContent=`⚠️ No se pudo eliminar en Google Sheets (${e.message}). Si dice «Acción no válida», actualiza el Apps Script con el código nuevo.`; sincronizarGs(true); }
+}
+async function eliminarJuradosSeleccionados(){
+  const ids=[...window.jurSel];
+  if(!ids.length) return;
+  if(!confirm(`¿Eliminar ${ids.length} jurado(s) de la base, con sus evaluaciones registradas?\n\nLos certificados emitidos permanecen en el registro.`)) return;
+  const quitar=getJurados().filter(j=>window.jurSel.has(j.id)).map(j=>({id:j.id,nombre:j.nombre}));
+  setJurados(getJurados().filter(j=>!window.jurSel.has(j.id)));
+  window.jurSel.clear(); renderBaseJurados(); renderRegistro();
+  const st=document.getElementById("jur-status");
+  if(!gsConfig()){ st.textContent=`✅ ${ids.length} jurado(s) eliminado(s) de este navegador.`; return; }
+  st.textContent="Eliminando en Google Sheets...";
+  try{ await gsLlamar("eliminarJurados",{lista:quitar}); st.textContent=`✅ ${ids.length} jurado(s) eliminado(s) de la base y de Google Sheets.`; }
+  catch(e){ console.error(e); st.textContent=`⚠️ No se pudo eliminar en Google Sheets (${e.message}). Si dice «Acción no válida», actualiza el Apps Script con el código nuevo.`; sincronizarGs(true); }
+}
+
 function toggleConfigRegistro(abrir){
   const c=document.getElementById("reg-config"), b=document.getElementById("btn-config");
   if(!c) return;
@@ -24955,8 +25038,6 @@ async function intentarAcceso(){
   btn.disabled=true; msg.textContent="Verificando...";
   try{
     const clave=await derivarYDescifrar(pw);
-    if(document.getElementById("acceso-recordar").checked){ try{ localStorage.setItem(ACCESO_KEY,clave); }catch(e){} }
-    else { try{ sessionStorage.setItem(ACCESO_KEY,clave); }catch(e){} }
     abrirHerramienta(clave);
   }catch(e){
     msg.textContent="Contraseña incorrecta. Inténtalo de nuevo.";
@@ -24964,14 +25045,11 @@ async function intentarAcceso(){
   }
 }
 function cerrarSesionHerramienta(){
-  if(!confirm("¿Cerrar sesión en este computador? Se pedirá la contraseña la próxima vez.")) return;
   try{ localStorage.removeItem(ACCESO_KEY); sessionStorage.removeItem(ACCESO_KEY); }catch(e){}
   location.reload();
 }
 window.addEventListener("load", ()=>{
-  let guardada=null;
-  try{ guardada=localStorage.getItem(ACCESO_KEY)||sessionStorage.getItem(ACCESO_KEY); }catch(e){}
-  if(guardada){ abrirHerramienta(guardada); return; }
+  try{ localStorage.removeItem(ACCESO_KEY); sessionStorage.removeItem(ACCESO_KEY); }catch(e){}
   document.body.classList.add("bloqueado");
   const lg=document.getElementById("acceso-logo"); if(lg) lg.src="data:image/png;base64,"+LOGO_B64;
   const g=document.getElementById("acceso-gate"); if(g) g.style.display="flex";
