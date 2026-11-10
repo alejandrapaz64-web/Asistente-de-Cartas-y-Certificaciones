@@ -23353,7 +23353,7 @@ body.bloqueado > :not(#acceso-gate){visibility:hidden;}
   <div id="reg-resumen" style="display:none;"></div>
 </div>
 <div class="card">
-  <h2>👥 Base de jurados</h2>
+  <h2>👥 Base de académicos</h2>
   <div id="jur-kpis" class="kpis"></div>
   <div class="chips" id="jur-chips"></div>
   <div class="field"><input type="text" id="jur-buscar" placeholder="Buscar por nombre, institución, línea o experticia" oninput="renderBaseJurados()"></div>
@@ -23387,6 +23387,15 @@ const MAPA = {
   Jurados: {id:"ID",tratamiento:"Tratamiento",nombre:"Nombre",institucion:"Institución",pais:"País",linea:"Línea de investigación",experticia:"Experticia (palabras clave)",correo:"Correo",orcid:"ORCID",scholar:"Google Scholar",cvlac:"CvLAC",actualizado:"Actualizado"},
   Evaluaciones: {jurado:"Jurado",tipo:"Tipo",estudiante:"Estudiante",titulo:"Título del trabajo",fecha:"Fecha",calificacion:"Calificación",programa:"Programa",codigo:"Código certificado"}
 };
+const TIPOS_PARTICIPACION = { defensa: "Defensa de tesis", disertacion: "Disertación", direccion: "Dirección de tesis", codireccion: "Codirección de tesis" };
+function tipoTexto(t) { return TIPOS_PARTICIPACION[t] || t || ""; }
+function tipoClave(t) {
+  t = String(t || "");
+  if (/codirec/i.test(t)) return "codireccion";
+  if (/direc/i.test(t)) return "direccion";
+  if (/defensa/i.test(t)) return "defensa";
+  return "disertacion";
+}
 const CAMPOS_JURADO = ["tratamiento","nombre","institucion","pais","linea","experticia","correo","orcid","scholar","cvlac"];
 
 function norm(n) {
@@ -23500,7 +23509,7 @@ function registrar(d) {
       const k = norm(ex.nombre) + "|" + norm(ev.estudiante) + "|" + norm(ev.titulo);
       if (claves[k] || (!ev.estudiante && !ev.titulo)) return;
       claves[k] = true;
-      nuevasE.push(filaDe("Evaluaciones", Object.assign({}, ev, { jurado: ex.nombre, tipo: ev.tipo === "defensa" ? "Defensa de tesis" : (ev.tipo === "disertacion" ? "Disertación" : ev.tipo) })));
+      nuevasE.push(filaDe("Evaluaciones", Object.assign({}, ev, { jurado: ex.nombre, tipo: tipoTexto(ev.tipo) })));
     });
   });
   anexar(hJ, nuevosJ.map(function (o) { return filaDe("Jurados", o); }));
@@ -23546,12 +23555,33 @@ function obtener() {
     const c = limpiar(j);
     c.evaluaciones = evs.filter(function (e) { return norm(e.jurado) === norm(j.nombre); }).map(function (e) {
       const x = limpiar(e); delete x.jurado;
-      x.tipo = /defensa/i.test(x.tipo) ? "defensa" : "disertacion";
+      x.tipo = tipoClave(x.tipo);
       return x;
     });
     return c;
   });
   return { registro: leer("Registro").filter(function (r) { return r.estado !== "Reservado"; }).map(limpiar), jurados: jurados };
+}
+
+// Datos públicos para el Directorio Académico: sin cédulas, correos, calificaciones ni códigos.
+function directorio() {
+  const evs = leer("Evaluaciones");
+  const academicos = leer("Jurados").map(function (j) {
+    const part = evs.filter(function (e) { return norm(e.jurado) === norm(j.nombre); }).map(function (e) {
+      const anios = String(e.fecha || "").match(/\d{4}/g);
+      return { rol: tipoClave(e.tipo), estudiante: e.estudiante || "", titulo: e.titulo || "", programa: e.programa || "", anio: anios ? anios[anios.length - 1] : "" };
+    });
+    return { tratamiento: j.tratamiento || "", nombre: j.nombre || "", institucion: j.institucion || "", pais: j.pais || "", linea: j.linea || "", experticia: j.experticia || "", orcid: j.orcid || "", scholar: j.scholar || "", cvlac: j.cvlac || "", participaciones: part };
+  }).filter(function (a) { return a.nombre; });
+  return { academicos: academicos, actualizado: new Date().toISOString() };
+}
+
+function salidaGet(e, o) {
+  const cb = e && e.parameter && e.parameter.callback;
+  if (cb && /^[A-Za-z0-9_]+$/.test(cb)) {
+    return ContentService.createTextOutput(cb + "(" + JSON.stringify(o).replace(/<\//g, "<\\/") + ");").setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return salida(o);
 }
 
 function salida(o) {
@@ -23586,11 +23616,15 @@ function doPost(e) {
 
 function doGet(e) {
   const p = (e && e.parameter) || {};
+  if (p.accion === "directorio") {
+    try { return salidaGet(e, Object.assign({ ok: true }, directorio())); }
+    catch (err) { return salidaGet(e, { ok: false, error: String(err && err.message || err) }); }
+  }
   const c = String(p.c || "").trim().toUpperCase();
-  if (p.accion !== "verificar" || !c) return salida({ ok: false, error: "Solicitud no válida" });
+  if (p.accion !== "verificar" || !c) return salidaGet(e, { ok: false, error: "Solicitud no válida" });
   const r = leer("Registro").find(function (x) { return String(x.codigo).toUpperCase() === c && x.estado !== "Reservado"; });
-  if (!r) return salida({ ok: true, encontrado: false });
-  return salida({ ok: true, encontrado: true, datos: { codigo: r.codigo, estado: r.estado, tipo: r.tipo, beneficiario: r.beneficiario, programa: r.programa, fecha_emision: r.fecha_emision, firmante: r.firmante } });
+  if (!r) return salidaGet(e, { ok: true, encontrado: false });
+  return salidaGet(e, { ok: true, encontrado: true, datos: { codigo: r.codigo, estado: r.estado, tipo: r.tipo, beneficiario: r.beneficiario, programa: r.programa, fecha_emision: r.fecha_emision, firmante: r.firmante } });
 }
 </script>
 </div>
@@ -24284,6 +24318,8 @@ function registrarEmision(e){
   return ok;
 }
 window.regFiltro="todos";
+const ROL_INFO={defensa:{t:"Defensa",c:"ev-def",x:"Defensa de tesis"},disertacion:{t:"Disertación",c:"ev-dis",x:"Disertación"},direccion:{t:"Dirección",c:"ev-as",x:"Dirección de tesis"},codireccion:{t:"Codirección",c:"ev-as",x:"Codirección de tesis"}};
+function claveRol(t){ t=String(t||""); if(/codirec/i.test(t)) return "codireccion"; if(/direc/i.test(t)) return "direccion"; if(/defensa/i.test(t)) return "defensa"; return "disertacion"; }
 function eventoPorCodigo(){ const m={}; getJurados().forEach(j=>(j.evaluaciones||[]).forEach(e=>{ if(e.codigo) m[e.codigo]=e.tipo; })); return m; }
 function tipoCorto(t){ return String(t||"").replace(/^Certificado\s+/i,""); }
 function setRegFiltro(f){ window.regFiltro=f; renderRegistro(); }
@@ -24292,7 +24328,7 @@ function renderRegistro(){
   if(!tabla) return;
   const reg=lsGet(REG_KEY,[]).filter(r=>r.codigo);
   const mapaEv=eventoPorCodigo();
-  const evento=r=>{ const t=r.evento||mapaEv[r.codigo]; return t?(/defensa/i.test(t)?"defensa":"disertacion"):""; };
+  const evento=r=>{ const t=r.evento||mapaEv[r.codigo]; return (t==="defensa"||t==="disertacion")?t:""; };
   const anio=String(new Date().getFullYear());
   const esEval=r=>/evaluador/i.test(r.tipo), esAs=r=>/asesor/i.test(r.tipo);
   const n={todos:reg.length, evaluador:reg.filter(esEval).length, defensa:reg.filter(r=>evento(r)==="defensa").length, disertacion:reg.filter(r=>evento(r)==="disertacion").length, asesor:reg.filter(esAs).length};
@@ -24553,7 +24589,7 @@ function actualizarResumenJurados(){
   const l=getJurados();
   const evs=l.reduce((t,j)=>t+(j.evaluaciones||[]).length,0);
   const sp=l.filter(sinPerfil).length, se=l.filter(j=>!String(j.experticia||"").trim()).length;
-  k.innerHTML=[[l.length,"Jurados",""],[evs,"Evaluaciones",""],[sp,"Sin perfil académico",sp?"alerta":""],[se,"Sin experticia",se?"alerta":""]]
+  k.innerHTML=[[l.length,"Académicos",""],[evs,"Participaciones",""],[sp,"Sin perfil académico",sp?"alerta":""],[se,"Sin experticia",se?"alerta":""]]
     .map(([v,t,c])=>`<div class="kpi ${c}"><div class="v">${v}</div><div class="l">${t}</div></div>`).join("");
   const n={todos:l.length,incompletos:l.filter(j=>sinPerfil(j)||!j.institucion).length};
   n.completos=l.length-n.incompletos;
@@ -24575,7 +24611,8 @@ function renderBaseJurados(abrirId){
   barraSeleccion("jur");
   cont.innerHTML=lista.map(j=>{
     const evs=j.evaluaciones||[];
-    const nDef=evs.filter(e=>e.tipo==="defensa").length, nDis=evs.length-nDef;
+    const cuenta={}; evs.forEach(e=>{ const k=claveRol(e.tipo); cuenta[k]=(cuenta[k]||0)+1; });
+    const resumenRoles=Object.keys(ROL_INFO).filter(k=>cuenta[k]).map(k=>`${ROL_INFO[k].t} ${cuenta[k]}`).join(" · ");
     const tags=[];
     tags.push(j.institucion?`<span class="tag">${escHtml([j.institucion,j.pais].filter(Boolean).join(", "))}</span>`:`<span class="tag warn">Institución por completar</span>`);
     tags.push(sinPerfil(j)?`<span class="tag warn">Sin perfil académico</span>`:`<span class="tag ok">${[j.orcid&&"ORCID",j.scholar&&"Scholar",j.cvlac&&"CvLAC"].filter(Boolean).join(" · ")}</span>`);
@@ -24585,7 +24622,7 @@ function renderBaseJurados(abrirId){
       <summary>
         <span class="jur-cab"><input type="checkbox" class="jur-check" ${window.jurSel.has(j.id)?"checked":""} onclick="event.stopPropagation()" onchange="selJurado('${j.id}',this.checked)"><span class="avatar${j.tratamiento==="Dra."?" f":""}">${escHtml(iniciales(j.nombre))}</span>
           <span style="min-width:0;"><span class="jn" id="jn-${j.id}">${escHtml(j.tratamiento)} ${escHtml(j.nombre)}</span><span class="jur-tags">${tags.join("")}</span></span></span>
-        <span class="jur-der"><span class="badge-cert">${evs.length} evaluación(es)</span>${evs.length?`<span class="ji">${nDef?`Defensa ${nDef}`:""}${nDef&&nDis?" · ":""}${nDis?`Disertación ${nDis}`:""}</span>`:""}</span>
+        <span class="jur-der"><span class="badge-cert">${evs.length} participación(es)</span>${resumenRoles?`<span class="ji">${resumenRoles}</span>`:""}</span>
       </summary>
       <div class="grid-2">
         <div class="field"><label>Tratamiento</label><select onchange="jurSet('${j.id}','tratamiento',this.value)"><option value="Dr."${j.tratamiento==="Dr."?" selected":""}>Dr.</option><option value="Dra."${j.tratamiento==="Dra."?" selected":""}>Dra.</option></select></div>
@@ -24593,7 +24630,7 @@ function renderBaseJurados(abrirId){
         <div class="field" style="grid-column:1/-1;"><label>Línea de investigación afín</label><select onchange="jurSet('${j.id}','linea',this.value)"><option value="">— Selecciona —</option>${LINEAS_INVESTIGACION.map(l=>`<option${j.linea===l?" selected":""}>${escHtml(l)}</option>`).join("")}</select></div>
         ${JUR_CAMPOS.map(([k,l])=>`<div class="field"${k==="experticia"?' style="grid-column:1/-1;"':""}><label>${l}</label><input type="text" value="${escHtml(j[k]||"")}" oninput="jurSet('${j.id}','${k}',this.value)"></div>`).join("")}
       </div>
-      <div class="jur-evals">${evs.length?evs.map(e=>`<p><span class="ev-badge ${e.tipo==="defensa"?"ev-def":"ev-dis"}">${e.tipo==="defensa"?"Defensa":"Disertación"}</span> ${escHtml(e.fecha||"")} · ${escHtml(e.estudiante)}, «${escHtml(e.titulo)}»</p>`).join(""):'<p class="hint">Sin evaluaciones registradas.</p>'}</div>
+      <div class="jur-evals">${evs.length?evs.map(e=>`<p><span class="ev-badge ${(ROL_INFO[claveRol(e.tipo)]||{}).c}">${(ROL_INFO[claveRol(e.tipo)]||{}).t}</span> ${escHtml(e.fecha||"")} · ${escHtml(e.estudiante)}, «${escHtml(e.titulo)}»</p>`).join(""):'<p class="hint">Sin evaluaciones registradas.</p>'}</div>
       <div class="acciones-fila"><button type="button" class="btn-mini del" onclick="eliminarJuradoBase('${j.id}')">Quitar de la base</button></div>
     </details>`;}).join("") || `<p class="hint" style="padding:10px 0;">${getJurados().length?"Sin resultados para este filtro.":"Aún no hay jurados. Se agregan al generar certificados de evaluador o al importar un Excel."}</p>`;
 }
@@ -24602,7 +24639,7 @@ function exportarJuradosExcel(){
   if(!l.length){ document.getElementById("jur-status").textContent="No hay jurados para descargar."; return; }
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(l.map(j=>({"Tratamiento":j.tratamiento,"Nombre":j.nombre,"Institución":j.institucion,"País":j.pais,"Línea de investigación":j.linea,"Experticia (palabras clave)":j.experticia,"Correo":j.correo,"ORCID":j.orcid,"Google Scholar":j.scholar,"CvLAC":j.cvlac,"N.º evaluaciones":(j.evaluaciones||[]).length}))), "Jurados");
-  const ev=[]; l.forEach(j=>(j.evaluaciones||[]).forEach(e=>ev.push({"Jurado":j.nombre,"Tipo":e.tipo==="defensa"?"Defensa de tesis":"Disertación","Estudiante":e.estudiante,"Título del trabajo":e.titulo,"Fecha":e.fecha,"Calificación":e.calificacion,"Programa":e.programa,"Código certificado":e.codigo})));
+  const ev=[]; l.forEach(j=>(j.evaluaciones||[]).forEach(e=>ev.push({"Jurado":j.nombre,"Tipo":(ROL_INFO[claveRol(e.tipo)]||{}).x,"Estudiante":e.estudiante,"Título del trabajo":e.titulo,"Fecha":e.fecha,"Calificación":e.calificacion,"Programa":e.programa,"Código certificado":e.codigo})));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ev.length?ev:[{"Jurado":"","Tipo":"","Estudiante":"","Título del trabajo":"","Fecha":"","Calificación":"","Programa":"","Código certificado":""}]), "Evaluaciones");
   XLSX.writeFile(wb, limpiarNombreArchivo(`Base de jurados - ${hoyTexto().replace(/\//g,"-")}`)+".xlsx");
 }
@@ -24629,7 +24666,7 @@ async function importarJuradosExcel(input){
       const nombre=g("jurado"); if(!nombre) return;
       let j=lista.find(x=>normNombre(x.nombre)===normNombre(nombre));
       if(!j){ j=nuevoJurado("",nombre); lista.push(j); nuevos++; }
-      const ev={tipo:/defensa/i.test(g("tipo"))?"defensa":"disertacion",estudiante:g("estudiante"),titulo:g("titulo_del_trabajo"),fecha:g("fecha"),calificacion:g("calificacion"),programa:g("programa"),codigo:g("codigo_certificado")};
+      const ev={tipo:claveRol(g("tipo")),estudiante:g("estudiante"),titulo:g("titulo_del_trabajo"),fecha:g("fecha"),calificacion:g("calificacion"),programa:g("programa"),codigo:g("codigo_certificado")};
       if(!ev.estudiante&&!ev.titulo) return;
       j.evaluaciones=j.evaluaciones||[];
       const k=normNombre(ev.estudiante)+"|"+normNombre(ev.titulo);
@@ -24645,6 +24682,13 @@ async function importarJuradosExcel(input){
 // ── Masivo de asesores desde Excel ──
 window.asGrupos=[];
 window.asModo="uno";
+function registrarAsesorEnBase(a,programa,codigo){
+  if(!a||!a.nombre) return;
+  const rol=a.rol==="codirector"?"codireccion":"direccion";
+  a.trabajos.filter(t=>t.estudiante||t.titulo).forEach(t=>{
+    upsertJurado(a.trat,a.nombre,{tipo:rol,estudiante:t.estudiante,titulo:t.titulo,fecha:t.fecha_sust||t.fecha_grado||fechaCertificado(),calificacion:"",programa,codigo});
+  });
+}
 function setAsModo(m){
   window.asModo=m;
   document.getElementById("btn-as-modo-uno").classList.toggle("active",m==="uno");
@@ -24771,6 +24815,7 @@ async function generarAsesoresMasivo(){
       usados.add(nombre.toLowerCase());
       zip.file(nombre+".docx",blob);
       registrarEmision({codigo,fecha_documento:fechaCertificado(),tipo:TIPO_NOMBRE.asesor_tesis,beneficiario:`${x.trat} ${x.nombre.trim()}`,documento:x.cedula.trim(),programa:prog.nombre,estudiante:x.trabajos.map(t=>t.estudiante).join(" | "),titulo:x.trabajos.map(t=>t.titulo).join(" | "),firmante:prog.firmante_nombre,archivo:nombre+".docx",modo:"Masivo asesores"});
+      registrarAsesorEnBase(datos,prog.nombre,codigo);
     }
     descargarBlob(await zip.generateAsync({type:"blob"}), limpiarNombreArchivo(`Certificados Asesores de Tesis - ${fechaCertificado()}`)+".zip");
     mostrarStatus(`✅ ${g.length} constancia(s) generada(s) y registrada(s).`,"ok",st);
@@ -26298,6 +26343,7 @@ async function generarDocumento(){
     const base=limpiarNombreArchivo(document.getElementById("nombre-archivo").value.replace(/\.docx$/i,""))||nombreArchivoAuto();
     descargarBlob(blob,base+".docx");
     registrarEmision(Object.assign(reg,{codigo,archivo:base+".docx",modo:"Individual",firmante:esCondonacionInd?"Crisanto Quiroga Otálora":prog.firmante_nombre}));
+    if(tipo==="asesor_tesis") registrarAsesorEnBase(getDatosAsesor(),prog.nombre,codigo);
     if(tipo==="certificado_evaluador"){
       const j=window.certJurados[window.certJuradoActivoIdx];
       if(j) upsertJurado(j.tratamiento,j.nombre,{tipo:window.certTipoEvaluacionActual,estudiante:reg.estudiante,titulo:reg.titulo,fecha:document.getElementById("cert-fecha-sustentacion").value.trim(),calificacion:document.getElementById("cert-calificacion").value.trim(),programa:prog.nombre,codigo});
