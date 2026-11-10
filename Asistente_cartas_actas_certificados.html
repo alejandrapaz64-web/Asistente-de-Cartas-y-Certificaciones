@@ -22762,6 +22762,7 @@ label.btn-mini{display:inline-block;margin:0;font-size:0.72rem;}
 .ev-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:0.68rem;font-weight:700;white-space:nowrap;}
 .ev-dis{background:#e3ecfb;color:#2E5AAC;}
 .ev-def{background:var(--azul);color:white;}
+.ev-as{background:#e8f6ee;color:#1e7b45;}
 .tipo-badge{font-size:0.72rem;color:#444;}
 .jur-cab{display:flex;gap:10px;align-items:center;min-width:0;}
 .avatar{width:36px;height:36px;border-radius:50%;background:var(--azul);color:white;display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:700;flex-shrink:0;}
@@ -23165,8 +23166,9 @@ body.bloqueado > :not(#acceso-gate){visibility:hidden;}
     <datalist id="dl-reconocimiento"><option value="Cum Laude"><option value="Summa Cum Laude"><option value="Laureada"><option value="Meritoria"><option value="Ninguno"></datalist>
     </div>
     <p class="sub-titulo" style="margin-top:14px;">Consulta y contacto</p>
-    <div class="field"><label>Enlace de consulta</label>
-      <input type="text" id="as-url" value="https://intellectum.unisabana.edu.co/handle/10818/9" oninput="pr()"></div>
+    <div class="field"><label>Enlace de consulta <span class="req">*</span></label>
+      <input type="text" id="as-url" value="" placeholder="Ej: https://intellectum.unisabana.edu.co/handle/10818/..." oninput="pr()">
+      <p class="hint">Obligatorio: enlace donde se puede consultar el trabajo de grado.</p></div>
     <div class="field"><label>Correo de contacto</label>
       <input type="text" id="as-correo" oninput="this.dataset.manual='1';pr()" placeholder="Ej: diego.rodriguez3@unisabana.edu.co">
       <p class="hint">Se completa con el correo del firmante cuando está disponible. Si lo dejas vacío, el párrafo se omite.</p></div>
@@ -24309,7 +24311,7 @@ function renderRegistro(){
   const tsNum=x=>Number(x.ts)||Date.parse(x.ts)||0;
   const filtrados=reg.slice().sort((a,b)=>tsNum(b)-tsNum(a)||String(b.codigo).localeCompare(String(a.codigo)))
     .filter(r=>pasaFiltro(r)&&(!q||normNombre([r.codigo,r.tipo,r.beneficiario,r.estudiante,r.titulo,r.programa].join(" ")).includes(q)));
-  const badge=r=>{ const e=evento(r); return e==="defensa"?'<span class="ev-badge ev-def">Defensa</span>':e==="disertacion"?'<span class="ev-badge ev-dis">Disertación</span>':'<span class="hint">—</span>'; };
+  const badge=r=>{ if(esAs(r)) return '<span class="ev-badge ev-as">Asesoría</span>'; const e=evento(r); return e==="defensa"?'<span class="ev-badge ev-def">Defensa</span>':e==="disertacion"?'<span class="ev-badge ev-dis">Disertación</span>':'<span class="hint">—</span>'; };
   window.__regVisibles=filtrados.slice(0,150).map(r=>r.codigo);
   barraSeleccion("reg");
   tabla.innerHTML = filtrados.length ? `<table class="tabla-estudiantes"><thead><tr><th style="width:28px;"><input type="checkbox" title="Seleccionar todos" ${filtrados.length&&filtrados.slice(0,150).every(r=>window.regSel.has(r.codigo))?"checked":""} onchange="selTodosRegistro(this.checked)"></th><th>Código</th><th>Fecha</th><th>Tipo</th><th>Evento</th><th>Beneficiario</th><th>Relacionado</th></tr></thead><tbody>${
@@ -24749,6 +24751,7 @@ async function generarAsesoresMasivo(){
   const g=window.asGrupos.filter(x=>x.nombre.trim()&&x.trabajos.length);
   if(!g.length){ mostrarStatus("No hay constancias para generar.","err",st); return; }
   const url=(document.getElementById("as-url").value||"").trim(), correo=(document.getElementById("as-correo").value||"").trim();
+  if(!/^https?:\/\/\S+$/i.test(url)){ mostrarStatus("⚠️ Escribe el enlace de consulta (sección «Consulta y contacto»). Debe empezar por https://.","err",st); return; }
   const zip=new JSZip(), usados=new Set();
   const conteo={}; g.forEach(x=>{const k=normNombre(x.nombre); conteo[k]=(conteo[k]||0)+1;});
   try{
@@ -25897,7 +25900,7 @@ function prAsesor(prog,fechaVal){
     <div class="pr-cuerpo">${parrafos}</div>
     <p style="font-weight:700;margin:8px 0 4px;font-size:9.5pt;">${escHtml(prog?prog.nombre.toUpperCase():"[PROGRAMA]")}</p>
     <div style="overflow-x:auto;"><table class="pr-tabla"><thead><tr>${enc.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${filas}</tbody></table></div>
-    ${a.url?`<p style="font-size:9.5pt;margin-bottom:8px;">La información puede ser consultada en <a href="${escHtml(a.url)}" target="_blank" rel="noopener">${escHtml(a.url)}</a></p>`:""}
+    <p style="font-size:9.5pt;margin-bottom:8px;">La información puede ser consultada en ${a.url?`<a href="${escHtml(a.url)}" target="_blank" rel="noopener">${escHtml(a.url)}</a>`:`<span style="color:#c00;">[Enlace de consulta]</span>`}</p>
     ${a.correo?`<p style="font-size:9.5pt;margin-bottom:8px;text-align:justify;">Para cualquier inquietud relacionada con este certificado, pueden comunicarse al correo electrónico: ${escHtml(a.correo)}.</p>`:""}
     <p style="font-size:9.5pt;margin-bottom:8px;">La presente certificación se expide ${escHtml(textoExpedicion(fechaVal))}.</p>
     <div class="pr-firmas">${firma}</div>
@@ -26265,6 +26268,7 @@ async function generarDocumento(){
     const a=getDatosAsesor();
     if(!a.nombre){mostrarStatus("⚠️ Escribe el nombre del asesor.","err","status");return;}
     if(!a.trabajos.some(t=>t.estudiante&&t.titulo)){mostrarStatus("⚠️ Completa al menos un trabajo con estudiante y título.","err","status");return;}
+    if(!/^https?:\/\/\S+$/i.test(a.url)){mostrarStatus("⚠️ Escribe el enlace de consulta del trabajo de grado (debe empezar por https://).","err","status");return;}
   }
   let cuerpo=modoActual==="plantillas"?document.getElementById("cuerpo-plantilla").value.trim():document.getElementById("cuerpo-manual").value.trim();
   if(!cuerpo){mostrarStatus("El cuerpo del documento está vacío.","err","status");return;}
