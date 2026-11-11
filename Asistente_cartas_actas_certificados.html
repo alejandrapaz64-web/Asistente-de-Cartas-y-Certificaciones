@@ -23357,6 +23357,7 @@ body.bloqueado > :not(#acceso-gate){visibility:hidden;}
   <div id="jur-kpis" class="kpis"></div>
   <div class="chips" id="jur-chips"></div>
   <div class="field"><input type="text" id="jur-buscar" placeholder="Buscar por nombre, institución, línea o experticia" oninput="renderBaseJurados()"></div>
+  <div id="jur-recuperar"></div>
   <div id="jur-sel-bar" class="sel-bar" style="display:none;"></div>
   <div id="jur-lista"></div>
   <div class="acciones-fila">
@@ -24597,9 +24598,53 @@ function actualizarResumenJurados(){
   document.getElementById("jur-chips").innerHTML=chips.map(([c,t])=>`<button type="button" class="chip${window.jurFiltro===c?" on":""}" onclick="setJurFiltro('${c}')">${t}<span class="n">${n[c]}</span></button>`).join("");
 }
 function iniciales(n){ const p=String(n||"").split(/\s+/).filter(x=>x&&!/^(de|del|la|los|las|y)$/i.test(x)); return ((p[0]||"")[0]||"").toUpperCase()+((p.length>2?p[p.length-2]:p[1]||"")[0]||"").toUpperCase(); }
+function asesoresSinBase(){
+  const enBase=new Set(); getJurados().forEach(j=>(j.evaluaciones||[]).forEach(e=>{ if(e.codigo) enBase.add(e.codigo); }));
+  return lsGet(REG_KEY,[]).filter(r=>r.codigo&&/asesor/i.test(r.tipo||"")&&!enBase.has(r.codigo));
+}
+function renderRecuperarAsesores(){
+  const box=document.getElementById("jur-recuperar"); if(!box) return;
+  const pend=asesoresSinBase();
+  if(!pend.length){ box.innerHTML=""; return; }
+  box.innerHTML=`<div class="bloque-item con-error" style="margin-bottom:12px;">
+    <div class="bloque-item-head"><span>⚠️ ${pend.length} certificado(s) de asesor aún no están en la base</span></div>
+    <p class="hint" style="margin-bottom:10px;">Se emitieron con una versión anterior del asistente. Confirma el rol y el año de sustentación, y agrégalos sin volver a generar el certificado.</p>
+    ${pend.map((r,i)=>{
+      const anio=(String(r.fecha_documento||r.fecha_emision||"").match(/\d{4}/g)||[""]).pop();
+      return `<div class="fila-jurado" style="flex-wrap:wrap;background:white;border-radius:8px;padding:8px 10px;">
+        <span style="flex:1;min-width:200px;font-size:0.78rem;"><strong>${escHtml(r.codigo)}</strong> · ${escHtml(r.beneficiario)}<br><span class="hint">${escHtml(r.estudiante||"")}</span></span>
+        <select id="rec-rol-${i}" style="width:auto;"><option value="direccion">Director/a</option><option value="codireccion">Codirector/a</option></select>
+        <input type="text" id="rec-anio-${i}" value="${escHtml(anio)}" placeholder="Año" style="width:70px;" title="Año de sustentación">
+      </div>`;}).join("")}
+    <div class="acciones-fila"><button type="button" class="btn-mini" onclick="recuperarAsesores()">➕ Agregar a la base de académicos</button></div>
+  </div>`;
+}
+function recuperarAsesores(){
+  const pend=asesoresSinBase(); let n=0;
+  pend.forEach((r,i)=>{
+    const rol=(document.getElementById("rec-rol-"+i)||{value:"direccion"}).value;
+    const anio=((document.getElementById("rec-anio-"+i)||{value:""}).value||"").trim();
+    const m=String(r.beneficiario||"").match(/^(Dra?)\.?\s+(.+)$/i);
+    const trat=m?(/^dra/i.test(m[1])?"Dra.":"Dr."):inferirTratamiento(r.beneficiario);
+    const nombre=(m?m[2]:String(r.beneficiario||"")).trim();
+    if(!nombre) return;
+    const ests=String(r.estudiante||"").split(" | "), tits=String(r.titulo||"").split(" | ");
+    const total=Math.max(ests.length,tits.length);
+    for(let k=0;k<total;k++){
+      const est=(ests[k]||"").trim(), tit=(tits[k]||"").trim();
+      if(!est&&!tit) continue;
+      upsertJurado(trat,nombre,{tipo:rol,estudiante:est,titulo:tit,fecha:anio,calificacion:"",programa:r.programa||"",codigo:r.codigo});
+      n++;
+    }
+  });
+  const st=document.getElementById("jur-status");
+  if(st) st.textContent=`✅ ${n} participación(es) de asesoría agregada(s) a la base${gsConfig()?" y enviadas a Google Sheets":""}.`;
+  renderBaseJurados(); renderRegistro();
+}
 function renderBaseJurados(abrirId){
   const cont=document.getElementById("jur-lista"); if(!cont) return;
   actualizarResumenJurados();
+  renderRecuperarAsesores();
   const q=normNombre((document.getElementById("jur-buscar")||{value:""}).value);
   const f=window.jurFiltro;
   const idsExist=new Set(getJurados().map(j=>j.id));
