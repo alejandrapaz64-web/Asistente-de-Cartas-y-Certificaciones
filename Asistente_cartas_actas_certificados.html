@@ -23489,8 +23489,12 @@ function registrar(d) {
   const hJ = hoja("Jurados");
   const jurados = leer("Jurados");
   const evaluaciones = leer("Evaluaciones");
-  const claves = {};
-  evaluaciones.forEach(function (e) { claves[norm(e.jurado) + "|" + norm(e.estudiante) + "|" + norm(e.titulo)] = true; });
+  const claves = {}, porCodigo = {};
+  evaluaciones.forEach(function (e) {
+    claves[norm(e.jurado) + "|" + tipoClave(e.tipo) + "|" + norm(e.estudiante) + "|" + norm(e.titulo)] = true;
+    if (e.codigo) porCodigo[norm(e.jurado) + "|" + String(e.codigo).trim()] = e;
+  });
+  const hE = hoja("Evaluaciones");
   const nuevosJ = [], nuevasE = [];
   (d.jurados || []).forEach(function (j) {
     if (!j || !j.nombre) return;
@@ -23507,14 +23511,23 @@ function registrar(d) {
     ex.actualizado = new Date().toISOString();
     if (ex._fila) hJ.getRange(ex._fila, 1, 1, HOJAS.Jurados.length).setNumberFormat("@").setValues([filaDe("Jurados", ex)]);
     (j.evaluaciones || []).forEach(function (ev) {
-      const k = norm(ex.nombre) + "|" + norm(ev.estudiante) + "|" + norm(ev.titulo);
+      const k = norm(ex.nombre) + "|" + tipoClave(ev.tipo) + "|" + norm(ev.estudiante) + "|" + norm(ev.titulo);
+      const previo = ev.codigo ? porCodigo[norm(ex.nombre) + "|" + String(ev.codigo).trim()] : null;
+      if (previo && previo._fila) {
+        const datos = Object.assign({}, previo);
+        Object.keys(ev).forEach(function (c) { if (ev[c] !== undefined && ev[c] !== null && String(ev[c]) !== "") datos[c] = ev[c]; });
+        datos.jurado = ex.nombre; datos.tipo = tipoTexto(datos.tipo);
+        hE.getRange(previo._fila, 1, 1, HOJAS.Evaluaciones.length).setNumberFormat("@").setValues([filaDe("Evaluaciones", datos)]);
+        claves[k] = true;
+        return;
+      }
       if (claves[k] || (!ev.estudiante && !ev.titulo)) return;
       claves[k] = true;
       nuevasE.push(filaDe("Evaluaciones", Object.assign({}, ev, { jurado: ex.nombre, tipo: tipoTexto(ev.tipo) })));
     });
   });
   anexar(hJ, nuevosJ.map(function (o) { return filaDe("Jurados", o); }));
-  anexar(hoja("Evaluaciones"), nuevasE);
+  anexar(hE, nuevasE);
   return { ok: true };
 }
 
@@ -24541,8 +24554,8 @@ function upsertJurado(trat,nombre,ev){
   if(trat) j.tratamiento=trat;
   if(ev){
     j.evaluaciones=j.evaluaciones||[];
-    const k=normNombre(ev.estudiante)+"|"+normNombre(ev.titulo);
-    const prev=j.evaluaciones.find(e=>normNombre(e.estudiante)+"|"+normNombre(e.titulo)===k);
+    const k=claveRol(ev.tipo)+"|"+normNombre(ev.estudiante)+"|"+normNombre(ev.titulo);
+    const prev=j.evaluaciones.find(e=>claveRol(e.tipo)+"|"+normNombre(e.estudiante)+"|"+normNombre(e.titulo)===k);
     if(prev) Object.assign(prev,ev); else j.evaluaciones.push(ev);
   }
   setJurados(lista); renderBaseJurados();
@@ -24714,8 +24727,10 @@ async function importarJuradosExcel(input){
       const ev={tipo:claveRol(g("tipo")),estudiante:g("estudiante"),titulo:g("titulo_del_trabajo"),fecha:g("fecha"),calificacion:g("calificacion"),programa:g("programa"),codigo:g("codigo_certificado")};
       if(!ev.estudiante&&!ev.titulo) return;
       j.evaluaciones=j.evaluaciones||[];
-      const k=normNombre(ev.estudiante)+"|"+normNombre(ev.titulo);
-      if(!j.evaluaciones.some(e=>normNombre(e.estudiante)+"|"+normNombre(e.titulo)===k)) j.evaluaciones.push(ev);
+      const previo=ev.codigo?j.evaluaciones.find(e=>e.codigo&&String(e.codigo).trim()===ev.codigo):null;
+      if(previo){ Object.keys(ev).forEach(c=>{ if(ev[c]) previo[c]=ev[c]; }); return; }
+      const k=claveRol(ev.tipo)+"|"+normNombre(ev.estudiante)+"|"+normNombre(ev.titulo);
+      if(!j.evaluaciones.some(e=>claveRol(e.tipo)+"|"+normNombre(e.estudiante)+"|"+normNombre(e.titulo)===k)) j.evaluaciones.push(ev);
     });
     setJurados(lista); renderBaseJurados();
     st.textContent=`✅ ${nuevos} jurado(s) nuevo(s) y ${act} actualizado(s).`;
@@ -24873,7 +24888,8 @@ function gsConfig(){ const c=getConfig(); return (c.gsUrl&&c.gsClave)?c:null; }
 async function gsLlamar(accion,datos){
   const c=gsConfig(); if(!c) throw new Error("Conexión no configurada");
   let t;
-  const limite=new Promise((_,rej)=>{ t=setTimeout(()=>rej(new Error("Google Sheets no respondió a tiempo")),30000); });
+  const espera=(accion==="sincronizar"||accion==="registrar")?180000:30000;
+  const limite=new Promise((_,rej)=>{ t=setTimeout(()=>rej(new Error("Google Sheets no respondió a tiempo")),espera); });
   try{
     const res=await Promise.race([fetch(c.gsUrl,{method:"POST",body:JSON.stringify({clave:c.gsClave,accion,datos})}),limite]);
     const j=await Promise.race([res.json(),limite]);
