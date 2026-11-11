@@ -22794,6 +22794,21 @@ body.bloqueado > :not(#acceso-gate){visibility:hidden;}
 .tabla-estudiantes tr.fila-sel td{background:#eef3fb;}
 .tabla-estudiantes input[type=checkbox],.jur-check{width:15px;height:15px;cursor:pointer;accent-color:var(--azul);flex-shrink:0;}
 
+.barra-mini{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin:-6px 0 10px;}
+.btn-xs{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:7px;font-size:0.7rem;font-weight:600;cursor:pointer;border:1.5px solid var(--borde);background:white;color:var(--azul);white-space:nowrap;margin:0;font-family:inherit;}
+.btn-xs:hover{border-color:var(--azul-claro);background:#f0f4fb;}
+.btn-xs.primario{background:var(--azul);border-color:var(--azul);color:white;}
+.btn-xs.primario:hover{background:var(--azul-claro);}
+.btn-xs:focus-visible{outline:2px solid var(--azul-claro);outline-offset:2px;}
+.dlg-acad{margin:auto;border:0;border-radius:14px;padding:0;width:min(640px,94vw);max-height:90vh;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+.dlg-acad::backdrop{background:rgba(15,30,60,0.45);}
+.dlg-acad-cab{display:flex;justify-content:space-between;align-items:center;background:var(--azul);color:white;padding:14px 18px;}
+.dlg-acad-cab h3{font-size:0.95rem;margin:0;}
+.dlg-x{background:rgba(255,255,255,0.15);border:0;color:white;width:28px;height:28px;border-radius:50%;font-size:1.1rem;cursor:pointer;}
+.dlg-acad-cuerpo{padding:14px 18px;overflow-y:auto;max-height:calc(90vh - 120px);}
+.dlg-acad-cuerpo .field{margin-bottom:8px;}
+.dlg-acad-pie{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--borde);background:#fafbfd;}
+
 /* ═══ RESPONSIVE ═══ */
 
 /* iPad Pro / landscape tablet (1024px) */
@@ -23340,36 +23355,68 @@ body.bloqueado > :not(#acceso-gate){visibility:hidden;}
 <div class="layout">
 <div class="card">
   <h2>🧾 Registro de emisión</h2>
+  <div class="barra-mini">
+    <button type="button" class="btn-xs" onclick="exportarRegistroExcel()">⬇️ Descargar Excel</button>
+    <label class="btn-xs">⬆️ Importar Excel<input type="file" accept=".xlsx,.xls,.csv" hidden onchange="importarRegistroExcel(this)"></label>
+  </div>
+  <p class="hint" id="reg-status"></p>
   <div id="reg-kpis" class="kpis"></div>
   <div class="chips" id="reg-chips"></div>
   <div class="field"><input type="text" id="reg-buscar" placeholder="Buscar por código, nombre, tipo o título" oninput="renderRegistro()"></div>
   <div id="reg-sel-bar" class="sel-bar" style="display:none;"></div>
   <div id="reg-tabla" style="overflow-x:auto;"></div>
-  <div class="acciones-fila">
-    <button type="button" class="btn-mini" onclick="exportarRegistroExcel()">⬇️ Descargar Excel</button>
-    <label class="btn-mini">⬆️ Importar Excel<input type="file" accept=".xlsx,.xls,.csv" hidden onchange="importarRegistroExcel(this)"></label>
-  </div>
-  <p class="hint" id="reg-status"></p>
   <div id="reg-resumen" style="display:none;"></div>
 </div>
 <div class="card">
   <h2>👥 Base de académicos</h2>
+  <div class="barra-mini">
+    <button type="button" class="btn-xs primario" onclick="abrirDialogoAcademico()">＋ Agregar académico</button>
+    <button type="button" class="btn-xs" onclick="exportarJuradosExcel()">⬇️ Descargar Excel</button>
+    <label class="btn-xs">⬆️ Importar Excel<input type="file" accept=".xlsx,.xls,.csv" hidden onchange="importarJuradosExcel(this)"></label>
+  </div>
+  <p class="hint" id="jur-status"></p>
   <div id="jur-kpis" class="kpis"></div>
   <div class="chips" id="jur-chips"></div>
   <div class="field"><input type="text" id="jur-buscar" placeholder="Buscar por nombre, institución, línea o experticia" oninput="renderBaseJurados()"></div>
   <div id="jur-recuperar"></div>
   <div id="jur-sel-bar" class="sel-bar" style="display:none;"></div>
   <div id="jur-lista"></div>
-  <div class="acciones-fila">
-    <button type="button" class="btn-mini" onclick="agregarJuradoBase()">+ Agregar jurado</button>
-    <button type="button" class="btn-mini" onclick="exportarJuradosExcel()">⬇️ Descargar Excel</button>
-    <label class="btn-mini">⬆️ Importar Excel<input type="file" accept=".xlsx,.xls,.csv" hidden onchange="importarJuradosExcel(this)"></label>
-  </div>
-  <p class="hint" id="jur-status"></p>
   <div id="jur-resumen" style="display:none;"></div>
 </div>
 </div>
 <datalist id="dl-jurados"></datalist>
+<dialog id="dlg-acad" class="dlg-acad" aria-labelledby="dlg-acad-tit">
+  <div class="dlg-acad-cab"><h3 id="dlg-acad-tit">Agregar académico</h3><button type="button" class="dlg-x" aria-label="Cerrar" onclick="document.getElementById('dlg-acad').close()">×</button></div>
+  <div class="dlg-acad-cuerpo">
+    <div id="dlg-perfil">
+      <p class="sub-titulo">Perfil</p>
+      <div class="grid-3">
+        <div class="field"><label>Tratamiento</label><select id="da-trat"><option value="Dra.">Dra.</option><option value="Dr.">Dr.</option></select></div>
+        <div class="field" style="grid-column:span 2;"><label>Nombre completo <span class="req">*</span></label><input type="text" id="da-nombre" list="dl-jurados" placeholder="Ej: María Soledad Ramírez Montoya"></div>
+      </div>
+      <div class="grid-2">
+        <div class="field"><label>Institución</label><input type="text" id="da-inst" placeholder="Ej: Universidad de Granada"></div>
+        <div class="field"><label>País</label><input type="text" id="da-pais" placeholder="Ej: España"></div>
+        <div class="field" style="grid-column:1/-1;"><label>Línea de investigación afín</label><select id="da-linea"></select></div>
+        <div class="field" style="grid-column:1/-1;"><label>Experticia (palabras clave, separadas por comas)</label><input type="text" id="da-exp" placeholder="Ej: Educación STEM, infancia, evaluación"></div>
+        <div class="field"><label>Correo (privado)</label><input type="text" id="da-correo"></div>
+        <div class="field"><label>ORCID</label><input type="text" id="da-orcid" placeholder="https://orcid.org/0000-..."></div>
+        <div class="field"><label>Google Scholar</label><input type="text" id="da-scholar" placeholder="https://scholar.google.com/..."></div>
+        <div class="field"><label>CvLAC</label><input type="text" id="da-cvlac" placeholder="https://scienti.minciencias.gov.co/..."></div>
+      </div>
+    </div>
+    <p class="sub-titulo" id="dlg-part-tit" style="margin-top:6px;">Participación (opcional)</p>
+    <div class="grid-2">
+      <div class="field"><label>Rol</label><select id="da-rol"><option value="">— Sin participación —</option><option value="disertacion">Jurado de disertación</option><option value="defensa">Jurado de defensa</option><option value="direccion">Director/a de tesis</option><option value="codireccion">Codirector/a de tesis</option></select></div>
+      <div class="field"><label>Programa</label><select id="da-prog"><option>Doctorado en Educación</option><option>Doctorado en Innovación Educativa con uso de TIC</option></select></div>
+      <div class="field"><label>Estudiante</label><input type="text" id="da-est"></div>
+      <div class="field"><label>Año o fecha</label><input type="text" id="da-fecha" placeholder="Ej: 2024 o 15 de mayo de 2024"></div>
+      <div class="field" style="grid-column:1/-1;"><label>Título de la tesis o proyecto</label><textarea id="da-tit" rows="2"></textarea></div>
+    </div>
+    <p class="hint" id="dlg-acad-msg"></p>
+  </div>
+  <div class="dlg-acad-pie"><button type="button" class="btn-xs" onclick="document.getElementById('dlg-acad').close()">Cancelar</button><button type="button" class="btn-xs primario" onclick="guardarAcademico()">Guardar</button></div>
+</dialog>
 <script type="text/plain" id="gs-codigo-plantilla">
 /**
  * NEXO Doctoral · Registro de certificados y base de jurados
@@ -23578,7 +23625,17 @@ function obtener() {
 }
 
 // Datos públicos para el Directorio Académico: sin cédulas, correos, calificaciones ni códigos.
+const CACHE_DIR = "directorio_publico_v1";
+function limpiarCacheDirectorio() { try { CacheService.getScriptCache().remove(CACHE_DIR); } catch (e) {} }
+
 function directorio() {
+  try { const c = CacheService.getScriptCache().get(CACHE_DIR); if (c) return JSON.parse(c); } catch (e) {}
+  const res = directorioSinCache();
+  try { const t = JSON.stringify(res); if (t.length < 95000) CacheService.getScriptCache().put(CACHE_DIR, t, 600); } catch (e) {}
+  return res;
+}
+
+function directorioSinCache() {
   const evs = leer("Evaluaciones");
   const academicos = leer("Jurados").map(function (j) {
     const part = evs.filter(function (e) { return norm(e.jurado) === norm(j.nombre); }).map(function (e) {
@@ -23612,11 +23669,11 @@ function doPost(e) {
     switch (p.accion) {
       case "probar": r = { hoja: SpreadsheetApp.getActiveSpreadsheet().getName() }; break;
       case "reservar": r = reservar(p.datos || {}); break;
-      case "registrar": r = registrar(p.datos || {}); break;
-      case "eliminarJurado": r = eliminarJurado(p.datos || {}); break;
-      case "eliminarJurados": r = eliminarJurados(p.datos || {}); break;
-      case "eliminarRegistros": r = eliminarRegistros(p.datos || {}); break;
-      case "sincronizar": registrar(p.datos || {}); r = obtener(); break;
+      case "registrar": r = registrar(p.datos || {}); limpiarCacheDirectorio(); break;
+      case "eliminarJurado": r = eliminarJurado(p.datos || {}); limpiarCacheDirectorio(); break;
+      case "eliminarJurados": r = eliminarJurados(p.datos || {}); limpiarCacheDirectorio(); break;
+      case "eliminarRegistros": r = eliminarRegistros(p.datos || {}); limpiarCacheDirectorio(); break;
+      case "sincronizar": registrar(p.datos || {}); limpiarCacheDirectorio(); r = obtener(); break;
       case "obtener": r = obtener(); break;
       default: return salida({ ok: false, error: "Acción no válida" });
     }
@@ -23640,6 +23697,9 @@ function doGet(e) {
   if (!r) return salidaGet(e, { ok: true, encontrado: false });
   return salidaGet(e, { ok: true, encontrado: true, datos: { codigo: r.codigo, estado: r.estado, tipo: r.tipo, beneficiario: r.beneficiario, programa: r.programa, fecha_emision: r.fecha_emision, firmante: r.firmante } });
 }
+
+// Si se edita la hoja a mano, el directorio se actualiza en la siguiente consulta.
+function onEdit(e) { limpiarCacheDirectorio(); }
 </script>
 </div>
 
@@ -24591,9 +24651,51 @@ function eliminarJuradoBase(id){
   setJurados(getJurados().filter(x=>x.id!==id)); renderBaseJurados();
   if(j&&gsConfig()) gsLlamar("eliminarJurado",{id:j.id,nombre:j.nombre}).catch(e=>estadoGs(false,e.message));
 }
-function agregarJuradoBase(){
-  const lista=getJurados(); const j=nuevoJurado("Dr.","Nuevo jurado"); lista.unshift(j); setJurados(lista);
-  document.getElementById("jur-buscar").value=""; renderBaseJurados(j.id);
+function agregarJuradoBase(){ abrirDialogoAcademico(); }
+function abrirDialogoAcademico(id){
+  const d=document.getElementById("dlg-acad");
+  const j=id?getJurados().find(x=>x.id===id):null;
+  d.dataset.id=j?j.id:"";
+  document.getElementById("dlg-acad-tit").textContent=j?`Agregar participación · ${j.tratamiento} ${j.nombre}`:"Agregar académico";
+  document.getElementById("dlg-perfil").style.display=j?"none":"";
+  document.getElementById("dlg-part-tit").textContent=j?"Participación":"Participación (opcional)";
+  document.getElementById("da-linea").innerHTML='<option value="">— Selecciona —</option>'+LINEAS_INVESTIGACION.map(l=>`<option>${escHtml(l)}</option>`).join("");
+  ["da-nombre","da-inst","da-pais","da-exp","da-correo","da-orcid","da-scholar","da-cvlac","da-est","da-fecha","da-tit"].forEach(k=>document.getElementById(k).value="");
+  document.getElementById("da-rol").value=j?"disertacion":"";
+  document.getElementById("da-trat").value="Dra.";
+  document.getElementById("dlg-acad-msg").textContent="";
+  d.showModal();
+  setTimeout(()=>document.getElementById(j?"da-rol":"da-nombre").focus(),50);
+}
+function guardarAcademico(){
+  const d=document.getElementById("dlg-acad"), msg=document.getElementById("dlg-acad-msg");
+  const v=k=>(document.getElementById(k).value||"").trim();
+  const lista=getJurados();
+  let j=d.dataset.id?lista.find(x=>x.id===d.dataset.id):null;
+  if(!j){
+    let nombre=v("da-nombre").replace(/^(Dra?)\.?\s+/i,"");
+    if(nombre.split(/\s+/).length<2){ msg.textContent="⚠️ Escribe el nombre completo (nombre y apellido)."; return; }
+    j=lista.find(x=>normNombre(x.nombre)===normNombre(nombre));
+    if(!j){ j=nuevoJurado(v("da-trat"),nombre); lista.push(j); }
+    else j.tratamiento=v("da-trat")||j.tratamiento;
+    [["institucion","da-inst"],["pais","da-pais"],["linea","da-linea"],["experticia","da-exp"],["correo","da-correo"],["orcid","da-orcid"],["scholar","da-scholar"],["cvlac","da-cvlac"]].forEach(([c,k])=>{ if(v(k)) j[c]=v(k); });
+  }
+  let ev=null;
+  if(v("da-rol")){
+    if(!v("da-est")&&!v("da-tit")){ msg.textContent="⚠️ Para registrar la participación escribe el estudiante o el título."; return; }
+    ev={tipo:v("da-rol"),estudiante:v("da-est"),titulo:v("da-tit"),fecha:v("da-fecha"),calificacion:"",programa:v("da-prog"),codigo:""};
+    j.evaluaciones=j.evaluaciones||[];
+    const k=claveRol(ev.tipo)+"|"+normNombre(ev.estudiante)+"|"+normNombre(ev.titulo);
+    if(j.evaluaciones.some(e=>claveRol(e.tipo)+"|"+normNombre(e.estudiante)+"|"+normNombre(e.titulo)===k)){ msg.textContent="⚠️ Esa participación ya está registrada."; return; }
+    j.evaluaciones.push(ev);
+  } else if(d.dataset.id){ msg.textContent="⚠️ Elige el rol de la participación."; return; }
+  setJurados(lista);
+  encolarGs("jurados",{id:j.id,tratamiento:j.tratamiento,nombre:j.nombre,institucion:j.institucion,pais:j.pais,linea:j.linea,experticia:j.experticia,correo:j.correo,orcid:j.orcid,scholar:j.scholar,cvlac:j.cvlac,evaluaciones:ev?[ev]:[]});
+  d.close();
+  document.getElementById("jur-buscar").value=""; window.jurFiltro="todos";
+  renderBaseJurados(j.id);
+  const st=document.getElementById("jur-status"); if(st) st.textContent=`✅ ${j.tratamiento} ${j.nombre} guardado${ev?" con su participación":""}${gsConfig()?". Se está enviando a Google Sheets.":"."}`;
+  const el=document.getElementById("jn-"+j.id); if(el) el.scrollIntoView({behavior:"smooth",block:"center"});
 }
 window.jurFiltro="todos";
 function setJurFiltro(f){ window.jurFiltro=f; renderBaseJurados(); }
@@ -24689,7 +24791,7 @@ function renderBaseJurados(abrirId){
         ${JUR_CAMPOS.map(([k,l])=>`<div class="field"${k==="experticia"?' style="grid-column:1/-1;"':""}><label>${l}</label><input type="text" value="${escHtml(j[k]||"")}" oninput="jurSet('${j.id}','${k}',this.value)"></div>`).join("")}
       </div>
       <div class="jur-evals">${evs.length?evs.map(e=>`<p><span class="ev-badge ${(ROL_INFO[claveRol(e.tipo)]||{}).c}">${(ROL_INFO[claveRol(e.tipo)]||{}).t}</span> ${escHtml(e.fecha||"")} · ${escHtml(e.estudiante)}, «${escHtml(e.titulo)}»</p>`).join(""):'<p class="hint">Sin evaluaciones registradas.</p>'}</div>
-      <div class="acciones-fila"><button type="button" class="btn-mini del" onclick="eliminarJuradoBase('${j.id}')">Quitar de la base</button></div>
+      <div class="acciones-fila"><button type="button" class="btn-mini" onclick="abrirDialogoAcademico('${j.id}')">＋ Agregar participación</button><button type="button" class="btn-mini del" onclick="eliminarJuradoBase('${j.id}')">Quitar de la base</button></div>
     </details>`;}).join("") || `<p class="hint" style="padding:10px 0;">${getJurados().length?"Sin resultados para este filtro.":"Aún no hay jurados. Se agregan al generar certificados de evaluador o al importar un Excel."}</p>`;
 }
 function exportarJuradosExcel(){
