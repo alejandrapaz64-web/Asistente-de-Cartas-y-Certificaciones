@@ -22799,6 +22799,9 @@ body.bloqueado > :not(#acceso-gate){visibility:hidden;}
 .btn-xs:hover{border-color:var(--azul-claro);background:#f0f4fb;}
 .btn-xs.primario{background:var(--azul);border-color:var(--azul);color:white;}
 .btn-xs.primario:hover{background:var(--azul-claro);}
+.estado-guardado{font-size:0.72rem;font-weight:600;align-self:center;}
+.estado-guardado.sucio{color:#b45309;}
+.estado-guardado.ok{color:#1e7b45;}
 .btn-xs:focus-visible{outline:2px solid var(--azul-claro);outline-offset:2px;}
 .dlg-acad{margin:auto;border:0;border-radius:14px;padding:0;width:min(640px,94vw);max-height:90vh;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
 .dlg-acad::backdrop{background:rgba(15,30,60,0.45);}
@@ -24756,8 +24759,33 @@ function recuperarAsesores(){
   if(st) st.textContent=`✅ ${n} participación(es) de asesoría agregada(s) a la base${gsConfig()?" y enviadas a Google Sheets":""}.`;
   renderBaseJurados(); renderRegistro();
 }
+window.__sucios=new Set(); window.__borradores={};
+const CAMPOS_PERFIL=["tratamiento","nombre","linea","institucion","pais","experticia","correo","orcid","scholar","cvlac"];
+function valJ(j,c){ const b=window.__borradores[j.id]; return b&&b[c]!==undefined?b[c]:(j[c]||""); }
+function marcarJuradoSucio(id){
+  const b={}; CAMPOS_PERFIL.forEach(c=>{ const el=document.getElementById(`jf-${id}-${c}`); if(el) b[c]=el.value; });
+  window.__borradores[id]=b; window.__sucios.add(id);
+  const st=document.getElementById("js-"+id); if(st){ st.textContent="● Cambios sin guardar"; st.className="estado-guardado sucio"; }
+}
+function guardarPerfilJurado(id){
+  const st=document.getElementById("js-"+id);
+  const lista=getJurados(); const j=lista.find(x=>x.id===id); if(!j) return;
+  const v=c=>{ const el=document.getElementById(`jf-${id}-${c}`); return el?el.value.trim():(j[c]||""); };
+  const nombre=v("nombre").replace(/^(Dra?)\.?\s+/i,"");
+  if(nombre.split(/\s+/).length<2){ if(st){ st.textContent="⚠️ Escribe nombre y apellido"; st.className="estado-guardado sucio"; } return; }
+  CAMPOS_PERFIL.forEach(c=>{ j[c]=c==="nombre"?nombre:v(c); });
+  setJurados(lista);
+  delete window.__borradores[id]; window.__sucios.delete(id);
+  encolarGs("jurados",{id:j.id,tratamiento:j.tratamiento,nombre:j.nombre,institucion:j.institucion,pais:j.pais,linea:j.linea,experticia:j.experticia,correo:j.correo,orcid:j.orcid,scholar:j.scholar,cvlac:j.cvlac,completo:true,evaluaciones:[]});
+  clearTimeout(__gsTimer); enviarPendientesGs();
+  renderBaseJurados(id);
+  const st2=document.getElementById("js-"+id); if(st2){ st2.textContent=gsConfig()?"✅ Guardado. Enviando a Google Sheets…":"✅ Guardado"; st2.className="estado-guardado ok"; }
+  if(gsConfig()) setTimeout(()=>{ const s3=document.getElementById("js-"+id); if(s3&&getPendientes().jurados.length===0) s3.textContent="✅ Guardado en Google Sheets"; },4000);
+}
+window.addEventListener("beforeunload",e=>{ if(window.__sucios&&window.__sucios.size){ e.preventDefault(); e.returnValue=""; } });
 function renderBaseJurados(abrirId){
   const cont=document.getElementById("jur-lista"); if(!cont) return;
+  if(abrirId===undefined){ const ab=cont.querySelector("details[open]"); if(ab&&ab.dataset.id) abrirId=ab.dataset.id; }
   actualizarResumenJurados();
   renderRecuperarAsesores();
   const q=normNombre((document.getElementById("jur-buscar")||{value:""}).value);
@@ -24778,20 +24806,20 @@ function renderBaseJurados(abrirId){
     tags.push(sinPerfil(j)?`<span class="tag warn">Sin perfil académico</span>`:`<span class="tag ok">${[j.orcid&&"ORCID",j.scholar&&"Scholar",j.cvlac&&"CvLAC"].filter(Boolean).join(" · ")}</span>`);
     if(j.linea) tags.push(`<span class="tag">${escHtml(j.linea.replace(/ \(TIC\)$/,""))}</span>`);
     return `
-    <details class="bloque-item jur-item"${j.id===abrirId?" open":""}>
+    <details class="bloque-item jur-item" data-id="${j.id}"${j.id===abrirId?" open":""}>
       <summary>
         <span class="jur-cab"><input type="checkbox" class="jur-check" ${window.jurSel.has(j.id)?"checked":""} onclick="event.stopPropagation()" onchange="selJurado('${j.id}',this.checked)"><span class="avatar${j.tratamiento==="Dra."?" f":""}">${escHtml(iniciales(j.nombre))}</span>
           <span style="min-width:0;"><span class="jn" id="jn-${j.id}">${escHtml(j.tratamiento)} ${escHtml(j.nombre)}</span><span class="jur-tags">${tags.join("")}</span></span></span>
         <span class="jur-der"><span class="badge-cert">${evs.length} participación(es)</span>${resumenRoles?`<span class="ji">${resumenRoles}</span>`:""}</span>
       </summary>
-      <div class="grid-2">
-        <div class="field"><label>Tratamiento</label><select onchange="jurSet('${j.id}','tratamiento',this.value)"><option value="Dr."${j.tratamiento==="Dr."?" selected":""}>Dr.</option><option value="Dra."${j.tratamiento==="Dra."?" selected":""}>Dra.</option></select></div>
-        <div class="field"><label>Nombre</label><input type="text" value="${escHtml(j.nombre)}" oninput="jurSet('${j.id}','nombre',this.value)"></div>
-        <div class="field" style="grid-column:1/-1;"><label>Línea de investigación afín</label><select onchange="jurSet('${j.id}','linea',this.value)"><option value="">— Selecciona —</option>${LINEAS_INVESTIGACION.map(l=>`<option${j.linea===l?" selected":""}>${escHtml(l)}</option>`).join("")}</select></div>
-        ${JUR_CAMPOS.map(([k,l])=>`<div class="field"${k==="experticia"?' style="grid-column:1/-1;"':""}><label>${l}</label><input type="text" value="${escHtml(j[k]||"")}" oninput="jurSet('${j.id}','${k}',this.value)"></div>`).join("")}
+      <div class="grid-2" oninput="marcarJuradoSucio('${j.id}')" onchange="marcarJuradoSucio('${j.id}')">
+        <div class="field"><label>Tratamiento</label><select id="jf-${j.id}-tratamiento"><option value="Dr."${valJ(j,"tratamiento")==="Dr."?" selected":""}>Dr.</option><option value="Dra."${valJ(j,"tratamiento")==="Dra."?" selected":""}>Dra.</option></select></div>
+        <div class="field"><label>Nombre</label><input type="text" id="jf-${j.id}-nombre" value="${escHtml(valJ(j,"nombre"))}"></div>
+        <div class="field" style="grid-column:1/-1;"><label>Línea de investigación afín</label><select id="jf-${j.id}-linea"><option value="">— Selecciona —</option>${LINEAS_INVESTIGACION.map(l=>`<option${valJ(j,"linea")===l?" selected":""}>${escHtml(l)}</option>`).join("")}</select></div>
+        ${JUR_CAMPOS.map(([k,l])=>`<div class="field"${k==="experticia"?' style="grid-column:1/-1;"':""}><label>${l}</label><input type="text" id="jf-${j.id}-${k}" value="${escHtml(valJ(j,k))}"></div>`).join("")}
       </div>
       <div class="jur-evals">${evs.length?evs.map(e=>`<p><span class="ev-badge ${(ROL_INFO[claveRol(e.tipo)]||{}).c}">${(ROL_INFO[claveRol(e.tipo)]||{}).t}</span> ${escHtml(e.fecha||"")} · ${escHtml(e.estudiante)}, «${escHtml(e.titulo)}»</p>`).join(""):'<p class="hint">Sin evaluaciones registradas.</p>'}</div>
-      <div class="acciones-fila"><button type="button" class="btn-mini" onclick="abrirDialogoAcademico('${j.id}')">＋ Agregar participación</button><button type="button" class="btn-mini del" onclick="eliminarJuradoBase('${j.id}')">Quitar de la base</button></div>
+      <div class="acciones-fila"><button type="button" class="btn-xs primario" onclick="guardarPerfilJurado('${j.id}')">💾 Guardar cambios</button><button type="button" class="btn-mini" onclick="abrirDialogoAcademico('${j.id}')">＋ Agregar participación</button><button type="button" class="btn-mini del" onclick="eliminarJuradoBase('${j.id}')">Quitar de la base</button><span class="estado-guardado${window.__sucios.has(j.id)?" sucio":""}" id="js-${j.id}">${window.__sucios.has(j.id)?"● Cambios sin guardar":""}</span></div>
     </details>`;}).join("") || `<p class="hint" style="padding:10px 0;">${getJurados().length?"Sin resultados para este filtro.":"Aún no hay jurados. Se agregan al generar certificados de evaluador o al importar un Excel."}</p>`;
 }
 function exportarJuradosExcel(){
@@ -25038,6 +25066,7 @@ function reenviarTodoGs(){
   sincronizarGs(true);
 }
 async function sincronizarGs(silencioso){
+  if(silencioso&&window.__sucios&&window.__sucios.size) return;
   const msg=document.getElementById("gs-msg");
   if(!gsConfig()){ if(!silencioso&&msg) msg.textContent="Configura primero la URL de la aplicación web y la clave."; return; }
   if(__gsEnviando){ setTimeout(()=>sincronizarGs(silencioso),1500); return; }
