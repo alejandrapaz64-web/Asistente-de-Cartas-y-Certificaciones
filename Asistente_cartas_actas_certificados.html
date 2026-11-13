@@ -25578,8 +25578,10 @@ function interpretarActa(lineas){
   let m;
   m = fullText.match(/(?:estudiante|doctorand[oa])[:\s]+([A-ZÁÉÍÓÚÑ][A-Za-záéíóúñüÁÉÍÓÚÑÜ.\s'-]*?)\s+sustent[oó]/i);
   if(m) datos.estudiante = tituloPropio(limpiarEspaciosTxt(m[1]));
-  m = fullText.match(/titulad[oa]:?\s*["“«]([^”"»]+)["”»]/i);
-  if(!m) m = fullText.match(/titulad[oa]:?\s*(.+?)\s*,?\s*bajo\s+la\s+direcci[oó]n/is);
+  m = fullText.match(/titulad[oa]:?\s*"([^"]+)"/i);
+  if(!m) m = fullText.match(/titulad[oa]:?\s*(.+?)\s*,?\s*bajo\s+la\s+(?:direcci[oó]n|tutor[ií]a|asesor[ií]a)/is);
+  if(!m) m = fullText.match(/titulad[oa]:?\s*“(.+)”/i);
+  if(!m) m = fullText.match(/titulad[oa]:?\s*«([^»]+)»/i);
   if(m) datos.titulo = limpiarEspaciosTxt(m[1]).replace(/^["“«']+|["”»'.,]+$/g,"").trim();
   m = fullText.match(/el\s+(?:d[ií]a\s+)?(\d{1,2}\s+de\s+[a-záéíóú]+\s+(?:de|del)\s+\d{4})/i);
   if(!m) m = fullText.match(/el\s+d[ií]a\s+([^,]+?),?\s*constituida/i);
@@ -25601,9 +25603,10 @@ function interpretarActa(lineas){
       const joined = lineas[i].join(" ");
       if(/universidad de la sabana,\s*campus/i.test(joined)||/km\.?\s*7/i.test(joined)||/call center/i.test(joined)) break;
       lineas[i].forEach(celda=>{
-        const c=celda.replace(/_{3,}/g," ").trim();
+        const c=celda.replace(/_{3,}/g," ").replace(/\s*:\s*/g," ").replace(/\s+[.·•,;-]+(?=\s|$)/g," ").replace(/[\s.,;·•-]+$/,"").replace(/\s+/g," ").trim();
         if(!c) return;
-        candidatos.push(c);
+        const partes=c.split(/\s{2,}|(?<=\S)\s+(?=Dra?\.\s)/);
+        partes.map(x=>x.trim()).filter(Boolean).forEach(x=>candidatos.push(x));
       });
     }
   }
