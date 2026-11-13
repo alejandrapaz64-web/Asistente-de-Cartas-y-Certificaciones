@@ -22805,6 +22805,12 @@ body.bloqueado > :not(#acceso-gate){visibility:hidden;}
 .pl-tabla td{border-bottom:1px solid var(--borde);padding:5px 7px;vertical-align:top;}
 .pl-ej td{white-space:nowrap;color:#555;background:#fafbfd;}
 .pl-oblig{font-size:0.66rem;color:#b45309;font-weight:600;}
+.perfil-ext{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px;}
+.orc-panel{flex-basis:100%;background:#f0f4fb;border:1px solid var(--borde);border-radius:8px;padding:10px 12px;font-size:0.76rem;}
+.orc-fila{display:flex;gap:8px;align-items:flex-start;justify-content:space-between;padding:5px 0;border-bottom:1px solid #e3e8f2;cursor:pointer;}
+.orc-fila:last-of-type{border-bottom:0;}
+.orc-fila input{margin-top:3px;}
+.orc-fila span{flex:1;}
 .estado-guardado{font-size:0.72rem;font-weight:600;align-self:center;}
 .estado-guardado.sucio{color:#b45309;}
 .estado-guardado.ok{color:#1e7b45;}
@@ -24800,6 +24806,82 @@ function guardarPerfilJurado(id){
   const st2=document.getElementById("js-"+id); if(st2){ st2.textContent=gsConfig()?"✅ Guardado. Enviando a Google Sheets…":"✅ Guardado"; st2.className="estado-guardado ok"; }
   if(gsConfig()) setTimeout(()=>{ const s3=document.getElementById("js-"+id); if(s3&&getPendientes().jurados.length===0) s3.textContent="✅ Guardado en Google Sheets"; },4000);
 }
+
+// ── Completar perfil desde ORCID / Google Scholar ──
+const ORCID_API="https://pub.orcid.org/v3.0/";
+function idOrcid(txt){ const m=String(txt||"").toUpperCase().match(/\d{4}-\d{4}-\d{4}-\d{3}[\dX]/); return m?m[0]:""; }
+async function orcidGet(ruta){
+  const ctrl=window.AbortController?new AbortController():null; const t=setTimeout(()=>ctrl&&ctrl.abort(),20000);
+  try{
+    const r=await fetch(ORCID_API+ruta,{headers:{Accept:"application/json"},signal:ctrl?ctrl.signal:undefined});
+    if(!r.ok) throw new Error(r.status===404?"El ORCID no existe.":"ORCID respondió "+r.status);
+    return await r.json();
+  } finally{ clearTimeout(t); }
+}
+function paisEs(cod){ try{ return cod?new Intl.DisplayNames(["es"],{type:"region"}).of(cod):""; }catch(e){ return cod||""; } }
+function valorJf(id,c){ const el=document.getElementById(`jf-${id}-${c}`); return el?el.value.trim():""; }
+async function completarDesdeOrcid(id){
+  const panel=document.getElementById("orc-"+id); if(!panel) return;
+  panel.hidden=false;
+  const oid=idOrcid(valorJf(id,"orcid"));
+  if(!oid) return buscarOrcidPorNombre(id);
+  panel.innerHTML='<p class="hint">⏳ Consultando ORCID '+oid+'…</p>';
+  try{
+    const [per,emp]=await Promise.all([orcidGet(oid+"/person"),orcidGet(oid+"/employments").catch(()=>null)]);
+    const nm=per&&per.name?[((per.name["given-names"]||{}).value||""),((per.name["family-name"]||{}).value||"")].join(" ").trim():"";
+    const kws=((per.keywords||{}).keyword||[]).map(k=>k.content).filter(Boolean);
+    const urls=((per["researcher-urls"]||{})["researcher-url"]||[]).map(u=>((u.url||{}).value||""));
+    const scholar=urls.find(u=>/scholar\.google/i.test(u))||"";
+    const cvlac=urls.find(u=>/cvlac|scienti\.minciencias/i.test(u))||"";
+    let inst="", pais="";
+    const sums=((emp||{})["affiliation-group"]||[]).flatMap(g=>(g.summaries||[]).map(x=>x["employment-summary"])).filter(Boolean);
+    const anio=x=>Number(((x["start-date"]||{}).year||{}).value||0);
+    const actuales=sums.filter(x=>!x["end-date"]).sort((a,b)=>anio(b)-anio(a));
+    const elegido=actuales[0]||sums.sort((a,b)=>anio(b)-anio(a))[0];
+    if(elegido&&elegido.organization){ inst=elegido.organization.name||""; pais=paisEs(((elegido.organization.address)||{}).country); }
+    if(!pais){ const ad=((per.addresses||{}).address||[])[0]; if(ad&&ad.country) pais=paisEs(ad.country.value); }
+    const filas=[["institucion","Institución",inst],["pais","País",pais],["experticia","Experticia",kws.join(", ")],["scholar","Google Scholar",scholar],["cvlac","CvLAC",cvlac],["orcid","ORCID","https://orcid.org/"+oid]].filter(f=>f[2]);
+    if(!filas.length){ panel.innerHTML=`<p class="hint">ORCID ${oid}${nm?" ("+escHtml(nm)+")":""} no tiene datos públicos adicionales.</p>`; return; }
+    panel.innerHTML=`<p class="hint" style="margin-bottom:6px;">Datos públicos de ORCID${nm?` · <strong>${escHtml(nm)}</strong>`:""}. Marca lo que quieras usar:</p>
+      ${filas.map(([c,l,v])=>{ const actual=valorJf(id,c); const marcar=!actual||c==="orcid"; return `<label class="orc-fila"><input type="checkbox" data-c="${c}" data-v="${escHtml(v)}"${marcar?" checked":""}> <span><strong>${l}:</strong> ${escHtml(v)}${actual&&actual!==v&&c!=="orcid"?`<br><span class="hint">Actual: ${escHtml(actual)}</span>`:""}</span></label>`; }).join("")}
+      <div style="display:flex;gap:6px;margin-top:6px;"><button type="button" class="btn-xs primario" onclick="aplicarOrcid('${id}')">Usar lo marcado</button><button type="button" class="btn-xs" onclick="document.getElementById('orc-${id}').hidden=true">Cerrar</button></div>`;
+  }catch(e){
+    console.error(e);
+    panel.innerHTML=`<p class="hint">⚠️ No se pudo consultar ORCID (${escHtml(e.message||"sin conexión")}). Verifica el número o intenta más tarde.</p>`;
+  }
+}
+function aplicarOrcid(id){
+  const panel=document.getElementById("orc-"+id);
+  panel.querySelectorAll("input[type=checkbox]:checked").forEach(cb=>{ const el=document.getElementById(`jf-${id}-${cb.dataset.c}`); if(el) el.value=cb.dataset.v; });
+  marcarJuradoSucio(id);
+  panel.innerHTML='<p class="hint">✅ Datos copiados al formulario. Revisa y pulsa <strong>💾 Guardar cambios</strong>.</p>';
+}
+async function buscarOrcidPorNombre(id){
+  const panel=document.getElementById("orc-"+id);
+  const nombre=valorJf(id,"nombre"); const partes=nombre.split(/\s+/).filter(Boolean);
+  if(partes.length<2){ panel.innerHTML='<p class="hint">Escribe el nombre completo para buscar en ORCID.</p>'; return; }
+  panel.innerHTML='<p class="hint">⏳ Buscando «'+escHtml(nombre)+'» en ORCID…</p>';
+  const n=partes.length;
+  const dado=n>=4?partes.slice(0,2).join(" "):partes[0];
+  const fam=n>=4?partes.slice(2).join(" "):partes.slice(1).join(" ");
+  const q=`given-names:(${dado}) AND family-name:(${fam.split(" ")[0]})`;
+  try{
+    const r=await orcidGet("expanded-search/?rows=6&q="+encodeURIComponent(q));
+    const res=(r["expanded-result"]||[]);
+    if(!res.length){ panel.innerHTML=`<p class="hint">No se encontraron perfiles ORCID para «${escHtml(nombre)}». Puede que no tenga ORCID o esté registrado con otro nombre.</p>`; return; }
+    panel.innerHTML=`<p class="hint" style="margin-bottom:6px;">No hay ORCID registrado. Posibles coincidencias (verifica la institución antes de elegir):</p>
+      ${res.map(x=>`<div class="orc-fila"><span><strong>${escHtml((x["given-names"]||"")+" "+(x["family-names"]||""))}</strong> · ${escHtml(x["orcid-id"])}<br><span class="hint">${escHtml((x["institution-name"]||[]).slice(0,3).join(" · ")||"Sin institución pública")}</span></span><button type="button" class="btn-xs" onclick="elegirOrcid('${id}','${x["orcid-id"]}')">Usar este</button></div>`).join("")}
+      <div style="margin-top:6px;"><button type="button" class="btn-xs" onclick="document.getElementById('orc-${id}').hidden=true">Cerrar</button></div>`;
+  }catch(e){ console.error(e); panel.innerHTML=`<p class="hint">⚠️ No se pudo buscar en ORCID (${escHtml(e.message||"sin conexión")}).</p>`; }
+}
+function elegirOrcid(id,oid){
+  const el=document.getElementById(`jf-${id}-orcid`); if(el){ el.value="https://orcid.org/"+oid; marcarJuradoSucio(id); }
+  completarDesdeOrcid(id);
+}
+function buscarEnScholar(id){
+  const nombre=valorJf(id,"nombre");
+  window.open("https://scholar.google.com/citations?view_op=search_authors&mauthors="+encodeURIComponent(nombre),"_blank","noopener");
+}
 window.addEventListener("beforeunload",e=>{ if(window.__sucios&&window.__sucios.size){ e.preventDefault(); e.returnValue=""; } });
 function renderBaseJurados(abrirId){
   const cont=document.getElementById("jur-lista"); if(!cont) return;
@@ -24837,6 +24919,11 @@ function renderBaseJurados(abrirId){
         ${JUR_CAMPOS.map(([k,l])=>`<div class="field"${k==="experticia"?' style="grid-column:1/-1;"':""}><label>${l}</label><input type="text" id="jf-${j.id}-${k}" value="${escHtml(valJ(j,k))}"></div>`).join("")}
       </div>
       <div class="jur-evals">${evs.length?evs.map(e=>`<p><span class="ev-badge ${(ROL_INFO[claveRol(e.tipo)]||{}).c}">${(ROL_INFO[claveRol(e.tipo)]||{}).t}</span> ${escHtml(e.fecha||"")} · ${escHtml(e.estudiante)}, «${escHtml(e.titulo)}»</p>`).join(""):'<p class="hint">Sin evaluaciones registradas.</p>'}</div>
+      <div class="perfil-ext">
+        <button type="button" class="btn-xs" onclick="completarDesdeOrcid('${j.id}')">🔎 Completar desde ORCID</button>
+        <button type="button" class="btn-xs" onclick="buscarEnScholar('${j.id}')">🎓 Buscar en Google Scholar</button>
+        <div id="orc-${j.id}" class="orc-panel" hidden></div>
+      </div>
       <div class="acciones-fila"><button type="button" class="btn-xs primario" onclick="guardarPerfilJurado('${j.id}')">💾 Guardar cambios</button><button type="button" class="btn-mini" onclick="abrirDialogoAcademico('${j.id}')">＋ Agregar participación</button><button type="button" class="btn-mini del" onclick="eliminarJuradoBase('${j.id}')">Quitar de la base</button><span class="estado-guardado${window.__sucios.has(j.id)?" sucio":""}" id="js-${j.id}">${window.__sucios.has(j.id)?"● Cambios sin guardar":""}</span></div>
     </details>`;}).join("") || `<p class="hint" style="padding:10px 0;">${getJurados().length?"Sin resultados para este filtro.":"Aún no hay jurados. Se agregan al generar certificados de evaluador o al importar un Excel."}</p>`;
 }
@@ -25151,7 +25238,8 @@ function programarPerfilGs(id){
   },1500);
 }
 async function enviarPendientesGs(){
-  if(!gsConfig()||__gsEnviando) return;
+  if(!gsConfig()) return;
+  if(__gsEnviando){ clearTimeout(window.__reintentoEnvio); window.__reintentoEnvio=setTimeout(enviarPendientesGs,1000); return; }
   const p=getPendientes(); const n1=p.registros.length, n2=p.jurados.length;
   if(!n1&&!n2) return;
   __gsEnviando=true;
