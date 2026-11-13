@@ -23134,6 +23134,11 @@ body.bloqueado > :not(#acceso-gate){visibility:hidden;}
       <label>Jurados de la mesa (se excluye automáticamente al Jefe de Mesa)</label>
       <div id="cert-jurados-lista" style="margin-top:6px;"></div>
       <button type="button" class="btn-add-row" onclick="agregarJuradoCert()">+ Agregar jurado</button>
+      <div style="margin-top:10px;padding:10px 12px;background:#f0f4fb;border-radius:8px;">
+        <p class="hint" style="margin:0 0 8px;">Marca las casillas de los jurados y genera sus certificados de una vez. También puedes certificar uno por uno con la lista de abajo.</p>
+        <button type="button" id="btn-lote-cert" class="btn-xs primario" onclick="generarCertificadosActaActual()">Marca al menos un jurado</button>
+        <div id="cert-lote-status" class="status-msg" style="margin-top:8px;"></div>
+      </div>
     </div>
     <div class="field">
       <label>Jurado a certificar <span class="req">*</span></label>
@@ -25412,6 +25417,7 @@ function renderJuradosCertList(){
   if(!cont) return;
   cont.innerHTML = window.certJurados.map((j,i)=>`
     <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+      <input type="checkbox" title="Incluir en la generación de varios certificados" ${j.excluir?"":"checked"} onchange="window.certJurados[${i}].excluir=!this.checked;actualizarBotonLoteCert();" style="width:16px;height:16px;flex-shrink:0;">
       <select onchange="window.certJurados[${i}].tratamiento=this.value;actualizarSelectJuradoCert();if(window.certJuradoActivoIdx===${i})seleccionarJuradoActivo();" style="width:66px;padding:5px 4px;border:1px solid #ccc;border-radius:6px;font-size:0.78rem;">
         <option value="Dr."${j.tratamiento==="Dr."?" selected":""}>Dr.</option>
         <option value="Dra."${j.tratamiento==="Dra."?" selected":""}>Dra.</option>
@@ -25420,6 +25426,24 @@ function renderJuradosCertList(){
       <button type="button" onclick="eliminarJuradoCert(${i})" style="background:#fef2f2;color:#c00;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;">✕</button>
     </div>`).join("") || "<p style='font-size:0.76rem;color:#999;'>Aún no hay jurados cargados.</p>";
   actualizarSelectJuradoCert();
+  actualizarBotonLoteCert();
+}
+function juradosLoteCert(){ return (window.certJurados||[]).filter(j=>!j.excluir&&String(j.nombre||"").trim()); }
+function actualizarBotonLoteCert(){
+  const b=document.getElementById("btn-lote-cert"); if(!b) return;
+  const n=juradosLoteCert().length;
+  b.disabled=!n;
+  b.textContent=n>1?`📦 Generar los ${n} certificados marcados (ZIP)`:(n===1?"📄 Generar el certificado marcado":"Marca al menos un jurado");
+}
+async function generarCertificadosActaActual(){
+  const v=id=>(document.getElementById(id)||{value:""}).value.trim();
+  const a={estudiante:v("cert-estudiante"),titulo:v("cert-titulo-trabajo"),fecha:v("cert-fecha-sustentacion"),calificacion:v("cert-calificacion"),tipo:window.certTipoEvaluacionActual||"disertacion",archivo:"acta"};
+  const st="cert-lote-status";
+  const falt=[["estudiante","estudiante"],["titulo","título"],["fecha","fecha"],["calificacion","calificación"]].filter(([k])=>!a[k]).map(x=>x[1]);
+  if(falt.length){ mostrarStatus("⚠️ Completa: "+falt.join(", ")+".","err",st); return; }
+  const lista=juradosLoteCert().map(j=>({a,j}));
+  if(!lista.length){ mostrarStatus("Marca al menos un jurado.","err",st); return; }
+  await generarLoteEvaluadores(lista,st);
 }
 
 function agregarJuradoCert(nombre="",tratamiento="Dr."){
@@ -25833,8 +25857,16 @@ async function generarCertificadosMasivo(){
   const items=[];
   window.actasMasivo.forEach(a=>a.jurados.forEach(j=>{ if(j.nombre.trim()) items.push({a,j}); }));
   if(!items.length){ mostrarStatus("No hay jurados para certificar.","err",st); return; }
+  await generarLoteEvaluadores(items,st);
+}
+
+async function generarLoteEvaluadores(items,st){
+  const progSel=document.getElementById("programa");
+  if(!progSel.value){ progSel.value="1"; actualizarPrograma(); }
+  const progId=progSel.value;
+  if(items.length>1&&typeof JSZip==='undefined'){ mostrarStatus("❌ No se pudo cargar el compresor ZIP. Revisa tu conexión e inténtalo de nuevo.","err",st); return; }
   const prevGenero=generoActual, prevTipo=window.certTipoEvaluacionActual;
-  const zip=new JSZip();
+  const zip=items.length>1?new JSZip():null;
   const usados=new Set();
   const conteo={};
   items.forEach(({j})=>{ const k=j.nombre.trim().toLowerCase(); conteo[k]=(conteo[k]||0)+1; });
@@ -25859,12 +25891,14 @@ async function generarCertificadosMasivo(){
       let nombre=base, n=2;
       while(usados.has(nombre.toLowerCase())){ nombre=`${base} (${n++})`; }
       usados.add(nombre.toLowerCase());
-      zip.file(nombre+".docx", blob);
+      if(items.length===1) descargarBlob(blob,nombre+".docx"); else zip.file(nombre+".docx", blob);
       registrarEmision({codigo,fecha_documento:fechaCertificado(),tipo:TIPO_NOMBRE.certificado_evaluador,beneficiario:nombreCompleto,documento:"",programa:PROGRAMAS[progId].nombre,estudiante:a.estudiante.trim(),titulo:a.titulo.trim(),firmante:PROGRAMAS[progId].firmante_nombre,archivo:nombre+".docx",modo:"Masivo evaluadores"});
       upsertJurado(j.tratamiento,j.nombre.trim(),{tipo:a.tipo,estudiante:a.estudiante.trim(),titulo:a.titulo.trim(),fecha:a.fecha.trim(),calificacion:a.calificacion.trim(),programa:PROGRAMAS[progId].nombre,codigo});
     }
-    const zipBlob=await zip.generateAsync({type:"blob"});
-    descargarBlob(zipBlob, limpiarNombreArchivo(`Certificados Evaluadores - ${fechaCertificado()}`)+".zip");
+    if(items.length>1){
+      const zipBlob=await zip.generateAsync({type:"blob"});
+      descargarBlob(zipBlob, limpiarNombreArchivo(`Certificados Evaluadores - ${fechaCertificado()}`)+".zip");
+    }
     mostrarStatus(`✅ ${items.length} certificado(s) generado(s), registrado(s) y agregados a la base de jurados.`,"ok",st);
   }catch(e){
     console.error(e);
