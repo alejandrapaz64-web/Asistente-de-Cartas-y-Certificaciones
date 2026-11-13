@@ -22799,6 +22799,12 @@ body.bloqueado > :not(#acceso-gate){visibility:hidden;}
 .btn-xs:hover{border-color:var(--azul-claro);background:#f0f4fb;}
 .btn-xs.primario{background:var(--azul);border-color:var(--azul);color:white;}
 .btn-xs.primario:hover{background:var(--azul-claro);}
+.pl-reglas{margin:4px 0 0 18px;font-size:0.78rem;line-height:1.5;}
+.pl-tabla{width:100%;border-collapse:collapse;font-size:0.74rem;margin-top:4px;}
+.pl-tabla th{background:var(--azul);color:white;text-align:left;padding:5px 7px;font-weight:600;white-space:nowrap;}
+.pl-tabla td{border-bottom:1px solid var(--borde);padding:5px 7px;vertical-align:top;}
+.pl-ej td{white-space:nowrap;color:#555;background:#fafbfd;}
+.pl-oblig{font-size:0.66rem;color:#b45309;font-weight:600;}
 .estado-guardado{font-size:0.72rem;font-weight:600;align-self:center;}
 .estado-guardado.sucio{color:#b45309;}
 .estado-guardado.ok{color:#1e7b45;}
@@ -23364,6 +23370,7 @@ body.bloqueado > :not(#acceso-gate){visibility:hidden;}
 <div class="card">
   <h2>🧾 Registro de emisión</h2>
   <div class="barra-mini">
+    <button type="button" class="btn-xs" onclick="abrirPlantilla('registro')">📄 Plantilla</button>
     <button type="button" class="btn-xs" onclick="exportarRegistroExcel()">⬇️ Descargar Excel</button>
     <label class="btn-xs">⬆️ Importar Excel<input type="file" accept=".xlsx,.xls,.csv" hidden onchange="importarRegistroExcel(this)"></label>
   </div>
@@ -23379,6 +23386,7 @@ body.bloqueado > :not(#acceso-gate){visibility:hidden;}
   <h2>👥 Base de académicos</h2>
   <div class="barra-mini">
     <button type="button" class="btn-xs primario" onclick="abrirDialogoAcademico()">＋ Agregar académico</button>
+    <button type="button" class="btn-xs" onclick="abrirPlantilla('academicos')">📄 Plantilla</button>
     <button type="button" class="btn-xs" onclick="exportarJuradosExcel()">⬇️ Descargar Excel</button>
     <label class="btn-xs">⬆️ Importar Excel<input type="file" accept=".xlsx,.xls,.csv" hidden onchange="importarJuradosExcel(this)"></label>
   </div>
@@ -23393,6 +23401,11 @@ body.bloqueado > :not(#acceso-gate){visibility:hidden;}
 </div>
 </div>
 <datalist id="dl-jurados"></datalist>
+<dialog id="dlg-plantilla" class="dlg-acad" aria-labelledby="dlg-pl-tit">
+  <div class="dlg-acad-cab"><h3 id="dlg-pl-tit">Plantilla de importación</h3><button type="button" class="dlg-x" aria-label="Cerrar" onclick="document.getElementById('dlg-plantilla').close()">×</button></div>
+  <div class="dlg-acad-cuerpo" id="dlg-pl-cuerpo"></div>
+  <div class="dlg-acad-pie"><button type="button" class="btn-xs" onclick="document.getElementById('dlg-plantilla').close()">Cerrar</button><button type="button" class="btn-xs primario" id="dlg-pl-btn">⬇️ Descargar plantilla</button></div>
+</dialog>
 <dialog id="dlg-acad" class="dlg-acad" aria-labelledby="dlg-acad-tit">
   <div class="dlg-acad-cab"><h3 id="dlg-acad-tit">Agregar académico</h3><button type="button" class="dlg-x" aria-label="Cerrar" onclick="document.getElementById('dlg-acad').close()">×</button></div>
   <div class="dlg-acad-cuerpo">
@@ -24470,7 +24483,7 @@ async function importarRegistroExcel(input){
     });
     lsSet(REG_KEY,reg); renderRegistro();
     st.textContent=`✅ ${nuevos} registro(s) nuevo(s) importado(s). Los códigos repetidos se omitieron.`;
-    reenviarTodoGs();
+    if(gsConfig()&&nuevos) enviarEnLotesGs({registros:reg.slice(-nuevos).map(sinDocumento)},st);
   }catch(e){ console.error(e); st.textContent="⚠️ No se pudo leer el archivo."; }
   finally{ input.value=""; }
 }
@@ -24836,23 +24849,111 @@ function exportarJuradosExcel(){
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ev.length?ev:[{"Jurado":"","Tipo":"","Estudiante":"","Título del trabajo":"","Fecha":"","Calificación":"","Programa":"","Código certificado":""}]), "Evaluaciones");
   XLSX.writeFile(wb, limpiarNombreArchivo(`Base de jurados - ${hoyTexto().replace(/\//g,"-")}`)+".xlsx");
 }
+
+// ── Plantillas de importación ──
+const PLANTILLAS_IMPORT={
+  academicos:{
+    titulo:"Plantilla · Base de académicos", hoja:"Académicos", archivo:"Plantilla_Base_de_academicos.xlsx",
+    cols:[["Tratamiento","Dr. o Dra.","",10],["Nombre","Nombre completo, sin Dr./Dra.","obligatorio",32],["Institución","Institución donde trabaja","",30],["País","País en español: Colombia, España, México…","",14],["Línea de investigación","Una de las tres líneas del programa","",34],["Experticia (palabras clave)","Palabras separadas por comas","",34],["Correo","Privado, no se publica","",28],["ORCID","Enlace https://orcid.org/… o el número","",32],["Google Scholar","Enlace completo","",32],["CvLAC","Enlace completo","",32],["Rol","Jurado de disertación · Jurado de defensa · Director/a de tesis · Codirector/a de tesis","si hay participación",22],["Estudiante","Nombre del doctorando","si hay participación",30],["Título de la tesis","Título completo","si hay participación",50],["Año o fecha","Ej: 2025 o 16 de octubre de 2025","",20],["Programa","Doctorado en Educación · Doctorado en Innovación Educativa con uso de TIC","si hay participación",40]],
+    reglas:["Una fila por cada participación (cada tesis en la que estuvo el académico). Si alguien participó en 3 tesis, va en 3 filas con el mismo nombre.","Los datos del perfil (institución, ORCID…) basta con escribirlos en una de sus filas.","Si solo quiere cargar o completar el perfil, deje vacías las columnas de Rol a Programa.","Las celdas vacías no borran datos que ya existan. Puede importar el mismo archivo varias veces: no se duplica nada.","No cambie los encabezados ni agregue columnas."],
+    ejemplo:[["Dr.","Alfredo Rodríguez Sedano","Universidad de Navarra","España","Institución Educativa, Currículo y Gestión","Sociología de la educación","","https://orcid.org/0000-0002-6614-1522","","","Director/a de tesis","Enciso Congote Juan David","Educación e Integración de Grupos Culturalmente Diversos","2025","Doctorado en Educación"],["","Alfredo Rodríguez Sedano","","","","","","","","","Jurado de defensa","Pérez Gómez Ana María","Título de la tesis evaluada","16 de octubre de 2026","Doctorado en Educación"]]
+  },
+  registro:{
+    titulo:"Plantilla · Registro de emisión", hoja:"Registro", archivo:"Plantilla_Registro_de_emision.xlsx",
+    cols:[["Código","Código único del certificado. Ej: DE-2025-0001","obligatorio",16],["Fecha de emisión","Formato dd/mm/aaaa","",16],["Tipo de documento","Ej: Certificado Evaluador · Certificado Asesor de Tesis","",28],["Beneficiario","Con tratamiento. Ej: Dra. Ana María Pérez","",30],["Programa","Doctorado en Educación · Doctorado en Innovación Educativa con uso de TIC","",36],["Estudiante relacionado","Nombre del doctorando","",30],["Título del trabajo","Título completo","",50],["Firmante","Quien firma el certificado","",30]],
+    reglas:["Sirve para cargar certificados emitidos antes de usar el asistente, con su código original.","Una fila por certificado. Los códigos que ya existan en el registro se omiten.","Para que el académico y su participación aparezcan en el directorio, cárguelos también con la plantilla de la Base de académicos.","No cambie los encabezados ni agregue columnas."],
+    ejemplo:[["DE-2025-0001","15/03/2025","Certificado Evaluador","Dra. Ana María Pérez","Doctorado en Educación","Gómez Ruiz Laura","Título de la tesis","Diego Efrén Rodríguez Cárdenas"]]
+  }
+};
+function abrirPlantilla(tipo){
+  const p=PLANTILLAS_IMPORT[tipo];
+  document.getElementById("dlg-pl-tit").textContent=p.titulo;
+  document.getElementById("dlg-pl-cuerpo").innerHTML=`
+    <p class="sub-titulo">Cómo diligenciarla</p>
+    <ol class="pl-reglas">${p.reglas.map(r=>`<li>${escHtml(r)}</li>`).join("")}</ol>
+    <p class="sub-titulo" style="margin-top:10px;">Columnas (una sola hoja: «${escHtml(p.hoja)}»)</p>
+    <table class="pl-tabla"><thead><tr><th>Columna</th><th>Qué escribir</th></tr></thead><tbody>
+      ${p.cols.map(([c,d,o])=>`<tr><td><strong>${escHtml(c)}</strong>${o?`<br><span class="pl-oblig">${escHtml(o)}</span>`:""}</td><td>${escHtml(d)}</td></tr>`).join("")}
+    </tbody></table>
+    <p class="sub-titulo" style="margin-top:10px;">Ejemplo de cómo se ve diligenciada</p>
+    <div style="overflow-x:auto;"><table class="pl-tabla pl-ej"><thead><tr>${p.cols.map(c=>`<th>${escHtml(c[0])}</th>`).join("")}</tr></thead><tbody>${p.ejemplo.map(f=>`<tr>${f.map(v=>`<td>${escHtml(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+    <p class="hint" style="margin-top:10px;">La plantilla se descarga vacía, solo con los encabezados. Luego impórtela con el botón «⬆️ Importar Excel» de esta misma sección.</p>`;
+  document.getElementById("dlg-pl-btn").onclick=()=>descargarPlantillaImport(tipo);
+  document.getElementById("dlg-plantilla").showModal();
+}
+function descargarPlantillaImport(tipo){
+  const p=PLANTILLAS_IMPORT[tipo];
+  const ws=XLSX.utils.aoa_to_sheet([p.cols.map(c=>c[0])]);
+  ws["!cols"]=p.cols.map(c=>({wch:c[3]}));
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,p.hoja);
+  XLSX.writeFile(wb,p.archivo);
+}
+async function enviarEnLotesGs(datos,statusEl){
+  if(!gsConfig()) return;
+  while(__gsEnviando) await new Promise(r=>setTimeout(r,800));
+  __gsEnviando=true;
+  const regs=datos.registros||[], jurs=datos.jurados||[];
+  const total=regs.length+jurs.length; let hechos=0;
+  const base=statusEl?statusEl.textContent.replace(/\s*⏳.*$/,"")+" ":"";
+  try{
+    for(let i=0;i<regs.length;i+=40){
+      const lote=regs.slice(i,i+40);
+      await gsLlamar("registrar",{registros:lote,jurados:[]}); hechos+=lote.length;
+      if(statusEl) statusEl.textContent=base+`⏳ Enviando a Google Sheets: ${hechos} de ${total}…`;
+    }
+    for(let i=0;i<jurs.length;i+=15){
+      const lote=jurs.slice(i,i+15);
+      await gsLlamar("registrar",{registros:[],jurados:lote}); hechos+=lote.length;
+      if(statusEl) statusEl.textContent=base+`⏳ Enviando a Google Sheets: ${hechos} de ${total}…`;
+    }
+    estadoGs(true);
+    if(statusEl) statusEl.textContent=base+"✅ Todo quedó guardado en Google Sheets.";
+  }catch(e){
+    console.error(e); estadoGs(false,e.message);
+    lsSet(CFG_KEY,Object.assign(getConfig(),{gsInicial:false}));
+    if(statusEl) statusEl.textContent=base+`⚠️ Se enviaron ${hechos} de ${total} a Google Sheets. Se reintentará en la próxima sincronización.`;
+  }finally{
+    __gsEnviando=false;
+    if(statusEl&&statusEl.textContent.includes("✅ Todo")) setTimeout(()=>sincronizarGs(true),500);
+  }
+}
 async function importarJuradosExcel(input){
   const st=document.getElementById("jur-status");
   const file=input.files[0]; if(!file) return;
   try{
     const hojas=await leerFilasExcel(file);
-    const hJ=hojas.find(h=>normClave(h.nombre)==="jurados")||hojas[0];
+    const hJ=hojas.find(h=>["jurados","academicos"].includes(normClave(h.nombre)))||hojas[0];
     const hE=hojas.find(h=>normClave(h.nombre)==="evaluaciones");
     const mapa={tratamiento:"tratamiento",nombre:"nombre",institucion:"institucion",pais:"pais",linea_de_investigacion:"linea",experticia_palabras_clave:"experticia",experticia:"experticia",correo:"correo",orcid:"orcid",google_scholar:"scholar",scholar:"scholar",cvlac:"cvlac"};
-    const lista=getJurados(); let nuevos=0, act=0;
+    const lista=getJurados(); let nuevos=0, act=0, sinProg=0, partN=0;
+    const tocados=new Map(), vistos=new Set();
+    const agregarEv=(j,ev)=>{
+      j.evaluaciones=j.evaluaciones||[];
+      const previo=ev.codigo?j.evaluaciones.find(e=>e.codigo&&String(e.codigo).trim()===ev.codigo):null;
+      if(previo){ Object.keys(ev).forEach(c=>{ if(ev[c]) previo[c]=ev[c]; }); return previo; }
+      const k=claveRol(ev.tipo)+"|"+normNombre(ev.estudiante)+"|"+normNombre(ev.titulo);
+      if(j.evaluaciones.some(e=>claveRol(e.tipo)+"|"+normNombre(e.estudiante)+"|"+normNombre(e.titulo)===k)) return null;
+      j.evaluaciones.push(ev); partN++; return ev;
+    };
+    const tocar=(j,ev)=>{ if(!tocados.has(j.id)) tocados.set(j.id,{j,evs:[]}); if(ev) tocados.get(j.id).evs.push(ev); };
     hJ.filas.forEach(f=>{
       const d={}; Object.keys(f).forEach(h=>{ const k=mapa[normClave(h)]; if(k) d[k]=String(f[h]).trim(); });
       if(!d.nombre) return;
       const m=d.nombre.match(/^(Dra?)\.?\s+(.+)$/i); if(m){ d.nombre=m[2].trim(); if(!d.tratamiento) d.tratamiento=/^dra/i.test(m[1])?"Dra.":"Dr."; }
       if(d.tratamiento) d.tratamiento=/^dra/i.test(d.tratamiento)?"Dra.":"Dr.";
       let j=lista.find(x=>normNombre(x.nombre)===normNombre(d.nombre));
-      if(!j){ j=nuevoJurado(d.tratamiento,d.nombre); lista.push(j); nuevos++; } else act++;
+      if(!j){ j=nuevoJurado(d.tratamiento||inferirTratamiento(d.nombre),d.nombre); lista.push(j); nuevos++; vistos.add(j.id); }
+      else if(!vistos.has(j.id)){ act++; vistos.add(j.id); }
       Object.keys(d).forEach(k=>{ if(d[k]) j[k]=d[k]; });
+      tocar(j,null);
+      const g=(...ks)=>{ const h=Object.keys(f).find(x=>ks.includes(normClave(x))); return h?String(f[h]).trim():""; };
+      const rol=g("rol","tipo");
+      if(!hE&&rol){
+        const ev={tipo:claveRol(rol),estudiante:g("estudiante"),titulo:g("titulo_de_la_tesis","titulo_del_trabajo","titulo"),fecha:g("ano_o_fecha","fecha"),calificacion:g("calificacion"),programa:g("programa"),codigo:g("codigo_certificado")};
+        if(!ev.estudiante&&!ev.titulo) return;
+        if(!ev.programa){ sinProg++; return; }
+        const r=agregarEv(j,ev); if(r) tocar(j,r);
+      }
     });
     if(hE) hE.filas.forEach(f=>{
       const g=k=>{ const h=Object.keys(f).find(x=>normClave(x)===k); return h?String(f[h]).trim():""; };
@@ -24861,15 +24962,12 @@ async function importarJuradosExcel(input){
       if(!j){ j=nuevoJurado("",nombre); lista.push(j); nuevos++; }
       const ev={tipo:claveRol(g("tipo")),estudiante:g("estudiante"),titulo:g("titulo_del_trabajo"),fecha:g("fecha"),calificacion:g("calificacion"),programa:g("programa"),codigo:g("codigo_certificado")};
       if(!ev.estudiante&&!ev.titulo) return;
-      j.evaluaciones=j.evaluaciones||[];
-      const previo=ev.codigo?j.evaluaciones.find(e=>e.codigo&&String(e.codigo).trim()===ev.codigo):null;
-      if(previo){ Object.keys(ev).forEach(c=>{ if(ev[c]) previo[c]=ev[c]; }); return; }
-      const k=claveRol(ev.tipo)+"|"+normNombre(ev.estudiante)+"|"+normNombre(ev.titulo);
-      if(!j.evaluaciones.some(e=>claveRol(e.tipo)+"|"+normNombre(e.estudiante)+"|"+normNombre(e.titulo)===k)) j.evaluaciones.push(ev);
+      const r=agregarEv(j,ev); tocar(j,r);
     });
     setJurados(lista); renderBaseJurados();
-    st.textContent=`✅ ${nuevos} jurado(s) nuevo(s) y ${act} actualizado(s).`;
-    reenviarTodoGs(true);
+    st.textContent=`✅ ${nuevos} académico(s) nuevo(s), ${act} actualizado(s) y ${partN} participación(es) nueva(s).`+(sinProg?` ⚠️ ${sinProg} fila(s) con rol pero sin Programa no se cargaron.`:"");
+    const envio=[...tocados.values()].map(({j,evs})=>({id:j.id,tratamiento:j.tratamiento,nombre:j.nombre,institucion:j.institucion,pais:j.pais,linea:j.linea,experticia:j.experticia,correo:j.correo,orcid:j.orcid,scholar:j.scholar,cvlac:j.cvlac,evaluaciones:evs}));
+    if(gsConfig()&&envio.length){ const base=st.textContent; st.textContent=base+" ⏳ Enviando a Google Sheets…"; enviarEnLotesGs({jurados:envio},st).then(()=>{}); }
   }catch(e){ console.error(e); st.textContent="⚠️ No se pudo leer el archivo."; }
   finally{ input.value=""; }
 }
